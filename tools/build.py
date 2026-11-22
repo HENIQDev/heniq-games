@@ -61,6 +61,20 @@ def check_output(root):
     return bad
 
 
+DEV_FILES = ("bot.js",)
+
+
+def strip_dev_files(game_dir):
+    """公開用のビルドから、検証用のファイル（ベンチ・シナリオ・ボット）を除く。"""
+    removed = []
+    for name in DEV_FILES:
+        f = Path(game_dir) / name
+        if f.exists():
+            f.unlink()
+            removed.append(name)
+    return removed
+
+
 def build(release=False, out=None):
     site = catalog.load_site()
     genres = catalog.load_genres()
@@ -85,6 +99,8 @@ def build(release=False, out=None):
         d = g["_dir"]
         if g["kind"] == "web":
             shutil.copytree(d / "play", dist / gid)
+            if release:
+                strip_dev_files(dist / gid)           # 検証用の bot.js は、公開物に入れない
         about = dist / gid / "about"
         about.mkdir(parents=True, exist_ok=True)
         art = d / "store" / "art"

@@ -80,6 +80,12 @@
 - **未確認**：iPhone 実機（FPS・発熱・入力遅延・Safari の挙動・手触り）、実際のスピーカーでの音、人間の手触りと難易度。
 - Git：3D 版は `ffa8a72` でコミット済み。この検証の変更は未コミット。push・公開はしていない。
 
+## 2026-11-22 CROWD SPRINT 3D 正式リリースの準備（承認：公開・push・HP 掲載）
+- 確認事項 1〜6 を、推奨どおり承認：プライバシーページの文面／Cloudflare Web Analytics は無効（オーナーの確認）／HP のプライバシーの項の文面／検索エンジンへの掲載は許可しない（`indexing: false`）／検証用 `bot.js` の除外／Pages プロジェクトはオーナーが作成。
+- 変更：`catalog/site.json`（`privacy_finalized: true`）・`games/crowd-sprint-3d/game.json`（published・公開日 2026-11-22・「テスト公開中」の表示）・`tools/build.py`（リリースビルドから `bot.js` を除外）・`tools/render.py`・`store/store.css`（「テスト公開中」のバッジ）。他のゲーム（BALL DODGE・2D 比較版・STONE DASH）は draft のまま、変更なし（リリースビルドの公開物にも入らない）。
+- テスト 46 件成功（公開物は 3D 版 1 本だけ・`bot.js` なし・プライバシーは確定表示・noindex・実際の設定で関門に不足なし）。
+- 未確認：FPS・GPU 時間（未計測）、iPhone 実機（未確認。リリース後にオーナーが確認）。
+
 ## 次回の再開地点
 00. BALL DODGE・CROWD SPRINT は完成（承認待ち：CROWD SPRINT の commit・手触りの確認・実機確認・公開）。次の候補：3 本目（巨大鳩）／HP 連携（H1）／公開の準備。旧メモ→（設計メモ `games/crowd-sprint/docs/SPEC.md` 11 章の 5 項目は未回答。推奨案で進めてよいか確認する。参考 2 本は調査済み・実プレイ不可）。HP 連携（H1）は別作業。
 0. M2：設計メモの 11 章（5 項目）の承認 → M2-a（マルチタッチ入力 → ベンチマーク版で iPhone 実機 60fps の確認 → 本体）。

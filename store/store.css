@@ -53,6 +53,7 @@ h1.label { font-size: 22px; color: var(--text); }
 .badge { padding: 1px 9px; border: 1px solid var(--line); border-radius: 999px; font-size: 11px; letter-spacing: 0.08em; color: var(--muted); }
 .badge-web { color: #9fe3b4; border-color: #2c5a3c; }
 .badge-ios { color: #9cc7ff; border-color: #2c4a73; }
+.badge-test { color: #ffd43b; border-color: #7a6a1e; }
 .badge-draft { color: #ffb86b; border-color: #6b4a24; }
 .card-play { padding: 5px 16px; border-radius: 999px; background: var(--text); color: #000; font-size: 13px; font-weight: 800; letter-spacing: 0.1em; text-decoration: none; }
 .card-play:hover, .card-play:focus-visible { background: var(--accent); outline: none; }

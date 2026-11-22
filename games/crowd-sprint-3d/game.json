@@ -11,8 +11,8 @@
   ],
   "tagline": "最後尾の 800 位から、1 位へ。800 人が走る、本物の 3D 大行列。",
   "summary": "800 人が一斉に走る 100m 走。ランナー全員が 3D のキャラクター。最後尾の 800 位からスタートして、人をよけて、追い抜いて、順位を駆け上がれ。",
-  "status": "draft",
-  "release_date": null,
+  "status": "published",
+  "release_date": "2026-11-22",
   "play_time": "約 20 秒",
   "tech": "webgl2",
   "controls": {
@@ -35,5 +35,6 @@
     "network": []
   },
   "budget_kb": 400,
-  "store_budget_kb": 1500
+  "store_budget_kb": 1500,
+  "release_label": "テスト公開中"
 }

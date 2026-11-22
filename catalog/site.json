@@ -2,7 +2,7 @@
   "name": "HENIQ GAMES",
   "site_url": "https://heniq-games.pages.dev",
   "indexing": false,
-  "privacy_finalized": false,
+  "privacy_finalized": true,
   "support_email": "heniq.support@gmail.com",
   "hosting": "Cloudflare Pages（Cloudflare, Inc.・米国）"
 }

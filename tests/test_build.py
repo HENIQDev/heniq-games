@@ -147,7 +147,7 @@ class StoreBuildTest(unittest.TestCase):
     # ---- 公開の関門 ----
     def test_release_build_has_no_drafts(self):
         ids = build.build(release=True, out=tempfile.mkdtemp())
-        self.assertEqual(ids, [])  # まだ公開の承認がないので、全部 draft
+        self.assertEqual(ids, ["crowd-sprint-3d"])  # 公開済みは、承認された 1 本だけ。draft は含まれない
 
     def test_release_blockers(self):
         site = catalog.load_site()
@@ -163,13 +163,44 @@ class StoreBuildTest(unittest.TestCase):
         site = catalog.load_site()
         games = {x["id"]: x for x in catalog.load_games(catalog.load_genres())}
         for gid in ("ball-dodge", "crowd-sprint", "crowd-sprint-3d"):
-            g = dict(games[gid], status="published")
+            g = dict(games[gid], status="published", release_date=None)      # 公開日が未設定の状態で、関門を確認
             blockers = catalog.release_blockers([g], dict(site, privacy_finalized=False))
             self.assertEqual(len(blockers), 2, (gid, blockers))
             self.assertTrue(any("プライバシー" in b for b in blockers))
             self.assertTrue(any("release_date" in b for b in blockers))
             ready = catalog.release_blockers([dict(g, release_date="2026-12-01")], dict(site, privacy_finalized=True))
             self.assertEqual(ready, [], gid)
+
+    def test_release_build_strips_dev_files_and_publishes_only_finished(self):
+        out = Path(tempfile.mkdtemp()) / "dist"
+        ids = build.build(release=True, out=out)
+        self.assertEqual(ids, ["crowd-sprint-3d"])                       # 公開するのは、承認された 1 本だけ
+        self.assertFalse((out / "crowd-sprint-3d" / "bot.js").exists(), "検証用の bot.js が公開物に入っている")
+        for other in ("ball-dodge", "crowd-sprint", "stone-dash"):
+            self.assertFalse((out / other).exists(), other + " が公開物に入っている")
+        priv = (out / "privacy" / "index.html").read_text(encoding="utf-8")
+        self.assertNotIn("確認前の下書き", priv)
+        self.assertIn("CROWD SPRINT", priv)
+        self.assertNotIn("BALL DODGE", priv)
+        index = (out / "index.html").read_text(encoding="utf-8")
+        self.assertIn("テスト公開中", index)
+        self.assertIn('name="robots" content="noindex"', index)          # 検索には載せない（indexing: false）
+        self.assertIn("Disallow: /", (out / "robots.txt").read_text())
+
+    def test_strip_dev_files(self):
+        with tempfile.TemporaryDirectory() as t:
+            (Path(t) / "bot.js").write_text("x"); (Path(t) / "main.js").write_text("y")
+            self.assertEqual(build.strip_dev_files(t), ["bot.js"])
+            self.assertTrue((Path(t) / "main.js").exists())
+
+    def test_published_game_passes_real_release_gate(self):
+        # 公開済みのゲームは、実際の設定（公開日・プライバシー確認済み）で、関門に不足がない
+        site = catalog.load_site()
+        games = catalog.load_games(catalog.load_genres())
+        pub = [g for g in games if g["status"] == "published"]
+        self.assertEqual([g["id"] for g in pub], ["crowd-sprint-3d"])
+        self.assertEqual(catalog.release_blockers(games, site), [])
+        self.assertTrue(site["privacy_finalized"])
 
     def test_asset_licenses_ledger(self):
         text = (ROOT / "ASSET_LICENSES.md").read_text(encoding="utf-8")

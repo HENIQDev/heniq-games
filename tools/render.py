@@ -49,6 +49,8 @@ def card(g, genres, root):
         badges.append('<span class="badge">RANKING</span>')
     if g["status"] != "published":
         badges.append('<span class="badge badge-draft">DRAFT</span>')
+    if g.get("release_label"):
+        badges.append('<span class="badge badge-test">%s</span>' % e(g["release_label"]))
     play = ""
     if g["kind"] == "web":
         play = '<a class="card-play" href="%s%s/">PLAY</a>' % (root, g["id"])
@@ -75,7 +77,7 @@ def hero_slide(g, root):
     return (
         '<section class="hero-slide g-%s" aria-label="%s">%s<div class="hero-copy">'
         '<p class="hero-kind">%s</p><h2>%s</h2><p>%s</p><div class="hero-actions">%s<a class="btn" href="%s">詳細</a></div></div></section>'
-    ) % (e(g["id"]), e(g["title"]), img, PLATFORM_LABEL[g["kind"]] + (" GAME" if g["kind"] == "web" else " APP"),
+    ) % (e(g["id"]), e(g["title"]), img, PLATFORM_LABEL[g["kind"]] + (" GAME" if g["kind"] == "web" else " APP") + ((" ・ " + g["release_label"]) if g.get("release_label") else ""),
          e(g["title"]), e(g["tagline"]), primary, e(about))
 
 
@@ -205,6 +207,8 @@ def about_page(g, genres, site, has_theme):
             '<li>%s</li>' % e("・".join(platforms(g))), '<li>%s</li>' % e(g["play_time"])]
     if g["features"].get("ranking"):
         meta.append("<li>ランキング</li>")
+    if g.get("release_label"):
+        meta.insert(0, '<li class="is-test">%s</li>' % e(g["release_label"]))
     meta += ["<li>%s</li>" % e(x) for x in g["tags"]]
     body = ['<body class="about" data-game="%s" data-kind="%s">' % (e(g["id"]), g["kind"]),
             '<nav class="hg-bar"><a href="%s">&larr; HENIQ GAMES</a><span>%s</span></nav>' % (root, PLATFORM_LABEL[g["kind"]]),
