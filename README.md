@@ -1,15 +1,24 @@
-# HENIQ WEB GAMES
+# HENIQ GAMES（WEB_GAMES）
 
-URL を開くだけで遊べる、無料のブラウザゲーム群。インストール・ログイン不要。公開先は Cloudflare Pages の `heniq-games`（予定。未公開）。
+URL を開くだけで遊べる、無料のブラウザゲーム群と、そのゲームストア。公式 HP とは独立（公開先は Cloudflare Pages の `heniq-games`。**未公開**）。
 
 ```bash
-python3 tools/build.py                      # dist/ を作る（--release で published のみ）
-python3 tools/serve.py                      # http://127.0.0.1:8790/
-python3 -m unittest discover -s tests       # テスト
+python3 tools/build.py && python3 tools/serve.py   # ストア：http://127.0.0.1:8790/
+python3 -m unittest discover -s tests              # テスト
+python3 tools/new_game.py <id> --title "…" --genre casual   # ゲームを追加
 ```
 
-| ゲーム | 状態 |
+| URL | 内容 |
 |---|---|
-| `ball-dodge`（ボール避け） | M1 完成（draft） |
+| `/` | ストアのトップ（統一デザイン） |
+| `/genre/<id>/` | ジャンル別 |
+| `/<id>/` | ゲーム本体（ブラウザゲーム） |
+| `/<id>/about/` | ゲーム詳細ページ（ゲームごとに独自のデザイン） |
 
-構成・設計：[docs/DESIGN.md](docs/DESIGN.md)／進捗：[docs/PROGRESS.md](docs/PROGRESS.md)／ルール：[CLAUDE.md](CLAUDE.md)
+| ゲーム | 種類 | 状態 |
+|---|---|---|
+| `ball-dodge` | WEB | 基盤・詳細ページの骨組みまで完了。9 段階の仕上げ中（draft） |
+| `stone-dash` | iOS | 掲載データの下書き（draft。App Store の URL は未設定） |
+| `crowd-sprint` | WEB | 設計メモ済み（`docs/M2_CROWD_SPRINT_DESIGN.md`）。BALL DODGE の後 |
+
+資料：[ルール](CLAUDE.md)／[運用フロー](docs/GAME_PIPELINE.md)／[ポータル設計](docs/PORTAL_DESIGN.md)／[設計](docs/DESIGN.md)／[進捗](docs/PROGRESS.md)

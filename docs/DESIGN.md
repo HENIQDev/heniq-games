@@ -1,5 +1,7 @@
 # HENIQ WEB GAMES 最終設計（2026-11-22 承認反映版）
 
+> **更新（2026-11-22）**：フォルダ構成・URL・運用は `docs/PORTAL_DESIGN.md`（承認済み）と `docs/GAME_PIPELINE.md` が最新。`games/<id>/` は `play/`・`store/`・`docs/` に分かれ、URL は `/`・`/genre/<id>/`・`/<id>/`・`/<id>/about/`。下の「構成」の図は古い。
+
 ## 決定事項（ユーザー承認済み）
 1. 公開先：新規 Cloudflare Pages プロジェクト `heniq-games`（`/<ゲームID>/`）。公式 HP は変更しない（WEB_GAMES の完成後に別途承認）。
 2. Git：`HENIQDev/heniq-games`（Private）を新規作成する方針。作成・初回 push は承認後（現状は認証が未確認。PROGRESS.md 参照）。

@@ -1,0 +1,16 @@
+{
+  "id": "stone-dash",
+  "title": "STONE DASH!",
+  "kind": "ios",
+  "genre": "action",
+  "tags": ["タイムアタック", "ランキング", "3ボタン"],
+  "tagline": "見極めろ。選べ。飛び越えろ。",
+  "summary": "左・中・右の 3 ボタンだけで飛び石を渡る、iPhone 用の 3D 反射神経ゲーム。",
+  "status": "draft",
+  "release_date": null,
+  "play_time": "30秒〜",
+  "app_store_url": null,
+  "controls": { "touch": "左・中・右の 3 ボタン" },
+  "features": { "ranking": true },
+  "store_budget_kb": 1500
+}

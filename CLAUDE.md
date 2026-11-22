@@ -1,17 +1,32 @@
 # HENIQ WEB GAMES：作業ルール
 
-`~/.claude/CLAUDE.md`（HENIQ 共通）と `HENIQ/CLAUDE.md` に加えて守る。矛盾したらこちらを優先し、報告する。設計は `docs/DESIGN.md`、進捗と再開は `docs/PROGRESS.md`。
+`~/.claude/CLAUDE.md`（HENIQ 共通）と `HENIQ/CLAUDE.md` に加えて守る。矛盾したらこちらを優先し、報告する。設計は `docs/DESIGN.md`・`docs/PORTAL_DESIGN.md`、**ゲーム追加の運用は `docs/GAME_PIPELINE.md`**、進捗と再開は `docs/PROGRESS.md`。
 
-## 禁止（承認なしでやらない）
-- 公式 HP（`~/Documents/HENIQ/HP*`）・Unity プロジェクト・飛び石の `Backend/` の変更（読むだけ）
-- 有料サービス、Cloudflare の本番設定、GitHub リポジトリの作成・push、公開（デプロイ）、解析・広告
-- Git の commit（共通ルールどおり承認制）
+## 運用（2026-11-22 〜）
+- ゲームは **1 本ずつ、企画から公開準備まで一気通貫**（調査→仕様→実装→UI・音→PC/スマホ→テスト→詳細ページ→公開準備→報告）。小さな作業ごとの承認は不要。
+- **事前承認が必要**：既存 HP の変更／本番公開／Git の push／有料サービス／外部サービスの新規登録／重大な設計変更／Git の commit（区切りでまとめて確認）／実機 iPhone の接続・操作／解析・広告。
+- 触らない：公式 HP（`~/Documents/HENIQ/HP*`。未コミット変更・ブランチも保護）、Unity プロジェクト、飛び石の `Backend/`（読むだけ）。
 
-## 方針
-- 公開物は `python3 tools/build.py` で `dist/` に作る。外部 URL・インラインのスタイル／スクリプトは禁止（ビルドが止める）。
-- 開発確認：`python3 tools/build.py && python3 tools/serve.py`（http://127.0.0.1:8790/）。
-- テスト：`python3 -m unittest discover -s tests`（ビルド検査＋ヘッドレス Chrome の自己テスト。全ゲーム共通）。
-- ゲームは `games/<id>/`（`game.json`・`index.html`・`main.js`）。共通部品は `platform/` に置き、ゲームに不要な機能を強制しない。
-- **ブラウザに秘密の値（鍵・トークン）を保存しない。** 保存してよいのは表示用の自己ベストだけ。ランキングは任意の別機能で、止まってもゲームは遊べること（`docs/DESIGN.md`）。
-- 新しいゲームの `status` は `draft`。`published` にするのは公開の承認を受けてから。
-- 参考ゲームは着想だけ。見た目・文言・素材はまねない。
+## 構成
+- `platform/`：共通基盤（`core/` ランタイム・入力・乱数・保存・自己テスト、`ui/` CSS）。必要な機能だけ使う。
+- `games/<id>/`：`game.json`・`play/`（本体）・`store/`（詳細ページ）・`docs/`（非公開の資料）。web と ios がある。
+- `store/`（リポジトリ直下）：ストアの統一デザイン（`store.css`・`store.js`）。`catalog/`：サイト設定・ジャンル。
+- `tools/`：`build.py`・`serve.py`・`new_game.py`・`catalog.py`・`render.py`。`tests/`：自動テスト。
+- URL：`/` ストア／`/genre/<id>/`／`/<id>/` 本体／`/<id>/about/` 詳細／`/privacy/`。
+
+## デザイン方針（最重要）
+- **ストア一覧は統一デザイン**（`store/store.css`）。**ゲームの詳細ページは共通デザインに縛らない。** そのゲームの世界観・キャラクター・色で大胆に作る（`store/theme.css`、必要なら `about.html`）。共通化するのは情報の構造と最低限の機能だけ。
+
+## コマンド
+```bash
+python3 tools/build.py && python3 tools/serve.py        # http://127.0.0.1:8790/
+python3 -m unittest discover -s tests                   # テスト（約 1 分）
+python3 tools/new_game.py <id> --title "…" --genre casual
+python3 tools/build.py --release                        # 公開の関門
+```
+
+## 守ること
+- 外部 URL の資源・インラインのスタイル／スクリプトは禁止（ビルドが止める）。解析・広告・外部通信なし。
+- **ブラウザに秘密の値（鍵・トークン）を保存しない。** 保存してよいのは表示用の自己ベストだけ。ランキングは任意の別機能で、止まってもゲームは遊べること。
+- 新しいゲームの `status` は `draft`。`published`・`indexing: true` は公開の承認後。
+- 参考ゲームは着想だけ。見た目・文言・素材・数値はまねない。実プレイできない時は、その旨を書く。

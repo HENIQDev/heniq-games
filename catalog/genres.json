@@ -1,0 +1,7 @@
+[
+  {"id": "casual",  "label": "カジュアル",     "description": "気軽に遊べる、1 本指のゲーム。"},
+  {"id": "action",  "label": "アクション",     "description": "反射神経と判断力を試すゲーム。"},
+  {"id": "race",    "label": "レース",         "description": "速さと駆け引きを楽しむゲーム。"},
+  {"id": "physics", "label": "物理演算",       "description": "予測できないカオスを楽しむゲーム。"},
+  {"id": "horror",  "label": "ホラー",         "description": "暗くて不気味な世界のゲーム。"}
+]

@@ -1,12 +1,19 @@
 {
   "id": "ball-dodge",
   "title": "BALL DODGE",
-  "summary": "飛んでくるボールを避け続ける、1 本指のサバイバル。",
+  "kind": "web",
+  "genre": "casual",
+  "tags": ["サバイバル", "1本指", "短時間"],
+  "tagline": "飛んでくるボールを、ひたすら避けろ。",
+  "summary": "飛んでくるボールを避け続ける、1 本指のサバイバル。何秒生き残れる？",
   "status": "draft",
+  "release_date": null,
+  "play_time": "30秒〜3分",
   "tech": "canvas2d",
   "controls": { "pc": "矢印キー／WASD", "touch": "画面をなぞる" },
   "score": { "unit": "ms", "order": "high", "label": "生存時間" },
   "features": { "ranking": false },
+  "data": { "local_storage": ["自己ベストのスコア（この端末のブラウザだけに保存。外部へは送らない）"], "cookies": [], "network": [] },
   "budget_kb": 200,
-  "assets": "なし（すべてコードで描画）"
+  "store_budget_kb": 1500
 }
