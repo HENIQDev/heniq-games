@@ -1,0 +1,42 @@
+/* HENIQ 共通デザイン（公式サイトに合わせた黒基調）。ゲームごとの見た目はゲーム側で描く。 */
+:root {
+  --bg: #000;
+  --text: #fff;
+  --muted: #a8a8a8;
+  --line: #262626;
+  --accent: #cddeff;
+  --danger: #ff5a5a;
+  --font: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Noto Sans JP", "Yu Gothic UI", "Segoe UI", sans-serif;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text); font-family: var(--font); overscroll-behavior: none; }
+
+.hg-root { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; background: #050505; touch-action: none; -webkit-user-select: none; user-select: none; }
+.hg-stage { position: relative; background: #000; box-shadow: 0 0 0 1px var(--line); }
+.hg-canvas { display: block; width: 100%; height: 100%; touch-action: none; outline: none; }
+.hg-overlay { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; background: rgb(0 0 0 / 0.62); }
+.hg-hidden { display: none; }
+.hg-panel { display: flex; flex-direction: column; align-items: center; gap: 0.7em; padding: 1.2em; max-width: 92%; text-align: center; }
+.hg-title { margin: 0; font-size: 2.2em; letter-spacing: 0.08em; }
+.hg-tagline { margin: 0; color: var(--muted); }
+.hg-how { color: var(--muted); font-size: 0.85em; line-height: 1.6; }
+.hg-how p { margin: 0; }
+.hg-over { margin: 0; font-size: 1.6em; letter-spacing: 0.12em; color: var(--danger); }
+.hg-score { margin: 0; font-size: 2.4em; font-weight: 700; font-variant-numeric: tabular-nums; }
+.hg-best { margin: 0; color: var(--muted); font-variant-numeric: tabular-nums; }
+.hg-new { margin: 0; color: var(--accent); letter-spacing: 0.2em; font-size: 0.9em; }
+.hg-btn { display: inline-block; min-width: 9em; padding: 0.8em 1.6em; border: 1px solid #5a5a5a; border-radius: 999px; background: transparent; color: var(--text); font: inherit; letter-spacing: 0.12em; text-decoration: none; cursor: pointer; }
+.hg-btn:hover, .hg-btn:focus-visible { border-color: var(--accent); outline: none; }
+.hg-primary { background: var(--text); color: #000; border-color: var(--text); font-weight: 700; }
+.hg-primary:hover, .hg-primary:focus-visible { background: var(--accent); border-color: var(--accent); }
+
+/* 一覧ページ */
+.hg-catalog { max-width: 1000px; margin: 0 auto; padding: 48px 20px 80px; }
+.hg-catalog h1 { margin: 0 0 8px; font-size: 1.6em; letter-spacing: 0.2em; }
+.hg-catalog .lead { margin: 0 0 32px; color: var(--muted); }
+.hg-grid { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 16px; }
+.hg-card { display: block; height: 100%; padding: 18px; border: 1px solid var(--line); border-radius: 12px; color: inherit; text-decoration: none; }
+.hg-card:hover, .hg-card:focus-visible { border-color: var(--accent); outline: none; }
+.hg-card h2 { margin: 0 0 6px; font-size: 1.05em; }
+.hg-card p { margin: 0; color: var(--muted); font-size: 0.9em; line-height: 1.5; }
+.hg-badge { display: inline-block; margin-top: 10px; padding: 2px 8px; border: 1px solid var(--line); border-radius: 999px; color: var(--muted); font-size: 0.75em; letter-spacing: 0.1em; }
