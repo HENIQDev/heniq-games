@@ -8,6 +8,11 @@
 - GitHub の認証状態（確認のみ）：`gh` なし、`~/.ssh` なし、Git のグローバルの user なし、credential helper は osxkeychain（HP は https の remote）。`HENIQDev/heniq-games` の作成・push は未実施。作成の方法（ブラウザで GitHub から作る／トークンの用意）をユーザーと決める必要がある。
 - 触っていない物：HP（`cms` ブランチの未コミット変更も含め変更なし）・Unity・飛び石の Backend・Cloudflare・外部サービス。
 
+## 2026-11-22 GitHub へ push 完了
+- `origin` = `https://github.com/HENIQDev/heniq-games.git`（Private）。`main`（`8dcb586`）を push、ローカルと同期（差 0/0）。
+- 認証：Fine-grained token `HENIQ-WEB-GAMES` を、このリポジトリだけ `credential.useHttpPath=true` で別のキーチェーン項目に保存（HP の認証には影響しない）。トークンはファイル・ログに残していない。
+- Cloudflare Pages への接続・公開設定は未実施（承認待ち）。
+
 ## 次回の再開地点
 1. 承認待ち：①M1 の commit ②GitHub リポジトリの作成方法 ③ボール避けの手触りの確認（難易度・当たり判定）
 2. M2：大量 100m 走。先に設計メモを書く（大量描画：キャラクターは単純な図形＋スプライトの一括描画、追い抜き＝レーンの入れ替わり、回避＝プレイヤーの 1〜2 ボタンの操作、群衆の人数と性能の予算：スマホで 60fps／数千体の目標を実測で詰める）。決定性（種）を守る。
