@@ -9,8 +9,12 @@ dist/ の構成
   /<id>/               ゲーム本体（web）     /<id>/about/   ゲーム詳細ページ
   /privacy/            プライバシー          /games.json    フィード（自動生成）
 """
+import datetime
+import json
+import os
 import re
 import shutil
+import subprocess
 import sys
 from pathlib import Path
 
@@ -34,6 +38,29 @@ HEADERS = """/*
 """
 
 
+def headers_text(indexing):
+    """_headers：全体のセキュリティヘッダー。非掲載中（indexing: false）は X-Robots-Tag: noindex も付ける。
+    robots.txt では巡回を止めない（止めると noindex を読めず、URL だけが検索結果に載る場合があるため。公式 HP と同じ方針）。"""
+    text = HEADERS.rstrip("\n") + "\n"
+    if not indexing:
+        text += "  X-Robots-Tag: noindex\n"
+    return text + "\n/build-info.json\n  Cache-Control: no-store\n"
+
+
+def build_info(release, ids, indexing):
+    """公開内容がどのコミットのものかを確かめるための、build-info.json（Cloudflare Pages は CF_PAGES_COMMIT_SHA を渡す）。"""
+    commit = os.environ.get("CF_PAGES_COMMIT_SHA", "")
+    if not commit:
+        try:
+            commit = subprocess.run(["git", "rev-parse", "HEAD"], cwd=str(ROOT), capture_output=True, text=True, timeout=10).stdout.strip() or "unknown"
+        except Exception:
+            commit = "unknown"
+    return json.dumps({
+        "commit": commit, "branch": os.environ.get("CF_PAGES_BRANCH", ""), "built_at": datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "release": bool(release), "indexing": bool(indexing), "games": ids,
+    }, ensure_ascii=False, indent=2) + "\n"
+
+
 class BuildError(Exception):
     pass
 
@@ -52,7 +79,7 @@ def check_output(root):
         text = f.read_text(encoding="utf-8")
         rel = f.relative_to(root)
         if f.suffix == ".html":
-            if HTML_RESOURCE.search(text):
+            if HTML_RESOURCE.search(re.sub(r'<link rel="canonical"[^>]*>', "", text)):      # canonical は読み込む資源ではない
                 bad.append("%s: 外部の資源" % rel)
             if re.search(r"<style|\sstyle\s*=|\son[a-z]+\s*=|<script(?![^>]*\ssrc=)", text, re.I):
                 bad.append("%s: インラインのスタイル／スクリプト" % rel)
@@ -126,7 +153,8 @@ def build(release=False, out=None):
     write(dist / "privacy" / "index.html", render.privacy_page(games, genres, site))
     write(dist / "404.html", render.not_found_page(games, genres, site))
     write(dist / "games.json", render.feed(games, genres))
-    write(dist / "_headers", HEADERS)
+    write(dist / "_headers", headers_text(site["indexing"]))
+    write(dist / "build-info.json", build_info(release, [g["id"] for g in games], site["indexing"]))
     if redirects:
         write(dist / "_redirects", "\n".join(redirects) + "\n")
 
@@ -138,8 +166,8 @@ def build(release=False, out=None):
             "  <url><loc>%s/%s</loc></url>\n" % (site["site_url"], u) for u in urls))
         write(dist / "robots.txt", "User-agent: *\nAllow: /\nSitemap: %s/sitemap.xml\n" % site["site_url"])
     else:
-        # 検索エンジンへの掲載は、公開の承認を受けるまで許可しない
-        write(dist / "robots.txt", "User-agent: *\nDisallow: /\n")
+        # 非掲載中：巡回は止めず、noindex（meta と X-Robots-Tag）で載せない。止めると noindex が読まれず、URL だけが載る場合がある
+        write(dist / "robots.txt", "User-agent: *\nAllow: /\n")
 
     bad = check_output(dist)
     if bad:

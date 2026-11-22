@@ -100,6 +100,13 @@
 - **未確認**：FPS・GPU 時間（未計測）、iPhone 実機（FPS・発熱・入力遅延・手触り。リリース後にオーナーが確認）、実際のスピーカーでの音。
 - 検索エンジンには載せていない（`indexing: false`・noindex）。
 
+## 2026-11-22 HENIQ GAMES・公式 HP の横断確認と改善
+- **発見**：①Cloudflare Pages の公開内容が、GitHub の最新より古い（`240bfab` まで。`90312e0`・`2acc1c0`・`ba45c61` が未反映。404 ページと公式 HP へのリンクが無い）②存在しない URL が 200 でトップを返す（`/ball-dodge/` など未公開ゲームの URL・`/sitemap.xml`・`/crowd-sprint-3d/bot.js` も 200＝ソフト 404）③`robots.txt` が `Disallow: /`（公式 HP の「非掲載中も巡回は止めない」と逆。HP からリンクされると、noindex が読まれず URL だけが載る場合がある）④公開内容がどのコミットか確かめる手段が無い⑤共有（OGP・Twitter カード）の情報が不足⑥公式 HP の GAMES が重複（旧一覧）⑦ストアのヘッダーに HENIQ のブランドが無い。
+- **改善（ローカルでコミット。push は承認待ち）**：①robots は巡回を許可し、noindex は meta と `X-Robots-Tag` で（`indexing: true` にすると sitemap・canonical・noindex 解除）②`build-info.json`（コミット・ブランチ・時刻。Cloudflare の `CF_PAGES_COMMIT_SHA`）③OGP・Twitter カード（題名・説明・URL・画像）④ヘッダーに HENIQ のロゴ（公式 HP のロゴのコピー。台帳に記載）⑤feed に `release_label`⑥canonical を含む HTML が、外部資源の検査で誤検出されない（`indexing: true` に切り替えたときにビルドが止まる不具合を、事前に修正）⑦運用手順 `docs/OPERATIONS.md`（デプロイの確認・ロールバック・追加・掲載の切り替え）。
+- 公式 HP（別クローン。`cms` の未コミット 3 ファイルは触れていない）：`c3e223e`（GAMES を HENIQ GAMES へ一本化。メニュー・フッター・ホーム・`/games/` の転送・重複する掲載の削除）と `b4e5ffc`（`build-info.json`）。テスト 126 件・公開情報の検査は問題なし。
+- テスト：HENIQ GAMES 53 件・公式 HP 126 件が成功。
+- 未反映・未確認：Cloudflare のデプロイ（`heniq-games` の失敗の原因は、ダッシュボードのビルドログが必要）、HP の push（承認待ち）。FPS・GPU 時間は未計測、iPhone 実機は未確認。
+
 ## 次回の再開地点
 00. BALL DODGE・CROWD SPRINT は完成（承認待ち：CROWD SPRINT の commit・手触りの確認・実機確認・公開）。次の候補：3 本目（巨大鳩）／HP 連携（H1）／公開の準備。旧メモ→（設計メモ `games/crowd-sprint/docs/SPEC.md` 11 章の 5 項目は未回答。推奨案で進めてよいか確認する。参考 2 本は調査済み・実プレイ不可）。HP 連携（H1）は別作業。
 0. M2：設計メモの 11 章（5 項目）の承認 → M2-a（マルチタッチ入力 → ベンチマーク版で iPhone 実機 60fps の確認 → 本体）。

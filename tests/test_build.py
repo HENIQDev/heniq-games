@@ -1,4 +1,5 @@
 import json
+import os
 import re
 import shutil
 import subprocess
@@ -101,12 +102,75 @@ class StoreBuildTest(unittest.TestCase):
         self.assertIn('href="/_store/store.css"', t)
 
     def test_not_indexable_until_approved(self):
-        self.assertIn("Disallow: /", (self.dist / "robots.txt").read_text())
+        # 非掲載中：noindex（meta と X-Robots-Tag）。robots.txt は巡回を止めない（止めると noindex が読まれず、URL だけが載る場合があるため）
+        robots = (self.dist / "robots.txt").read_text()
+        self.assertIn("Allow: /", robots)
+        self.assertNotIn("Disallow: /", robots)
+        self.assertNotIn("Sitemap:", robots)
         self.assertFalse((self.dist / "sitemap.xml").exists())
+        self.assertIn("X-Robots-Tag: noindex", (self.dist / "_headers").read_text())
         for p in self.dist.rglob("index.html"):
             if p.parent.name in ("platform",):
                 continue
             self.assertIn('name="robots" content="noindex"', p.read_text(encoding="utf-8"), str(p))
+
+    def test_indexing_true_publishes_sitemap_and_drops_noindex(self):
+        # 掲載を許可したとき（indexing: true）の状態：sitemap・canonical があり、noindex が無い
+        with tempfile.TemporaryDirectory() as t:
+            site = json.loads((ROOT / "catalog" / "site.json").read_text(encoding="utf-8"))
+            site["indexing"] = True
+            original = catalog.CATALOG_DIR
+            cat = Path(t) / "catalog"
+            shutil.copytree(ROOT / "catalog", cat)
+            (cat / "site.json").write_text(json.dumps(site), encoding="utf-8")
+            catalog.CATALOG_DIR = cat
+            try:
+                out = Path(t) / "dist"
+                build.build(release=True, out=out)
+            finally:
+                catalog.CATALOG_DIR = original
+            self.assertIn("Sitemap: https://heniq-games.pages.dev/sitemap.xml", (out / "robots.txt").read_text())
+            sm = (out / "sitemap.xml").read_text(encoding="utf-8")
+            for u in ("/", "/crowd-sprint-3d/", "/crowd-sprint-3d/about/", "/genre/race/"):
+                self.assertIn("<loc>https://heniq-games.pages.dev%s</loc>" % u, sm)
+            self.assertNotIn("X-Robots-Tag", (out / "_headers").read_text())
+            idx = (out / "index.html").read_text(encoding="utf-8")
+            self.assertNotIn('name="robots" content="noindex"', idx)
+            self.assertIn('<link rel="canonical" href="https://heniq-games.pages.dev/">', idx)
+
+    def test_social_meta_on_pages(self):
+        # 共有（OGP・Twitter カード）：ストア・ゲームの詳細・ジャンル・プライバシーに、題名・説明・URL・画像がある
+        for path, needs_image in (("index.html", True), ("crowd-sprint-3d/about/index.html", True), ("genre/race/index.html", False), ("privacy/index.html", False)):
+            html = (self.dist / path).read_text(encoding="utf-8")
+            for key in ("og:title", "og:description", "og:url", "og:type", "og:site_name", "twitter:title", "twitter:card"):
+                self.assertIn(key, html, (path, key))
+            self.assertEqual("og:image" in html, needs_image, path)
+        about = (self.dist / "crowd-sprint-3d/about/index.html").read_text(encoding="utf-8")
+        self.assertIn('property="og:image" content="https://heniq-games.pages.dev/crowd-sprint-3d/about/art/og.jpg"', about)
+        self.assertIn('name="twitter:card" content="summary_large_image"', about)
+
+    def test_build_info_matches_the_build(self):
+        info = json.loads((self.dist / "build-info.json").read_text(encoding="utf-8"))
+        self.assertEqual(set(info), {"commit", "branch", "built_at", "release", "indexing", "games"})
+        self.assertRegex(info["built_at"], r"^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\dZ$")
+        self.assertEqual(info["games"], self.ids)
+        self.assertIn("Cache-Control: no-store", (self.dist / "_headers").read_text())
+        # Cloudflare Pages が渡すコミットを優先する
+        os_env = os.environ.get("CF_PAGES_COMMIT_SHA")
+        os.environ["CF_PAGES_COMMIT_SHA"] = "abc123"
+        try:
+            self.assertEqual(json.loads(build.build_info(True, [], False))["commit"], "abc123")
+        finally:
+            if os_env is None:
+                del os.environ["CF_PAGES_COMMIT_SHA"]
+            else:
+                os.environ["CF_PAGES_COMMIT_SHA"] = os_env
+
+    def test_header_has_brand_logo_linking_to_hp(self):
+        html = (self.dist / "index.html").read_text(encoding="utf-8")
+        self.assertIn('<img src="_store/heniq-logo.png" alt="HENIQ"', html)
+        self.assertIn('class="logo-games">GAMES', html)
+        self.assertTrue((self.dist / "_store" / "heniq-logo.png").exists())
 
     def test_csp(self):
         h = (self.dist / "_headers").read_text()
@@ -205,7 +269,7 @@ class StoreBuildTest(unittest.TestCase):
         index = (out / "index.html").read_text(encoding="utf-8")
         self.assertIn("テスト公開中", index)
         self.assertIn('name="robots" content="noindex"', index)          # 検索には載せない（indexing: false）
-        self.assertIn("Disallow: /", (out / "robots.txt").read_text())
+        self.assertIn("Allow: /", (out / "robots.txt").read_text())
 
     def test_strip_dev_files(self):
         with tempfile.TemporaryDirectory() as t:

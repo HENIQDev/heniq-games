@@ -6,7 +6,9 @@ body.store { margin: 0; background: var(--bg); color: var(--text); font-family: 
 a { color: inherit; }
 img { max-width: 100%; height: auto; }
 .top { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 16px; padding: 14px clamp(16px, 4vw, 48px); border-bottom: 1px solid var(--line); position: sticky; top: 0; background: rgb(7 8 12 / 0.92); z-index: 5; }
-.logo { font-weight: 800; letter-spacing: 0.22em; text-decoration: none; }
+.logo { display: inline-flex; align-items: center; gap: 12px; text-decoration: none; }
+.logo img { display: block; height: 17px; width: auto; }
+.logo-games { font-size: 13px; font-weight: 700; letter-spacing: 0.34em; color: var(--muted); }
 .top-hp { padding: 4px 14px; border: 1px solid var(--line); border-radius: 999px; font-size: 13px; letter-spacing: 0.06em; color: var(--muted); text-decoration: none; white-space: nowrap; }
 .top-hp:hover, .top-hp:focus-visible { color: var(--text); border-color: var(--accent); outline: none; }
 .top-nav { display: flex; gap: 6px 18px; flex-wrap: wrap; justify-content: flex-end; font-size: 14px; color: var(--muted); }

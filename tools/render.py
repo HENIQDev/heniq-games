@@ -23,19 +23,32 @@ def genre_label(genres, gid):
     return next((x["label"] for x in genres if x["id"] == gid), gid)
 
 
-def head(title, css, root, site, description="", og_image=None, canonical=None):
+def head(title, css, root, site, description="", og_image=None, canonical=None, og_type="website"):
+    """<head> の先頭〜 CSS まで（閉じタグは呼び出し側）。noindex・説明・canonical・OGP・Twitter カード。"""
     robots = "" if site["indexing"] else '<meta name="robots" content="noindex">\n'
-    og = ""
-    if og_image and site.get("site_url"):
-        og = '<meta property="og:image" content="%s">\n' % e(og_image)
     desc = '<meta name="description" content="%s">\n' % e(description) if description else ""
     canon = '<link rel="canonical" href="%s">\n' % e(canonical) if canonical and site["indexing"] else ""
+    social = ""
+    if site.get("site_url"):
+        social += '<meta property="og:site_name" content="%s">\n<meta property="og:type" content="%s">\n<meta property="og:locale" content="ja_JP">\n' % (e(site["name"]), og_type)
+        social += '<meta property="og:title" content="%s">\n' % e(title)
+        if description:
+            social += '<meta property="og:description" content="%s">\n' % e(description)
+        if canonical:
+            social += '<meta property="og:url" content="%s">\n' % e(canonical)
+        if og_image:
+            social += '<meta property="og:image" content="%s">\n<meta name="twitter:card" content="summary_large_image">\n<meta name="twitter:image" content="%s">\n' % (e(og_image), e(og_image))
+        else:
+            social += '<meta name="twitter:card" content="summary">\n'
+        social += '<meta name="twitter:title" content="%s">\n' % e(title)
+        if description:
+            social += '<meta name="twitter:description" content="%s">\n' % e(description)
     links = "".join('<link rel="stylesheet" href="%s%s">\n' % (root, c) for c in css)
     return (
         '<!doctype html>\n<html lang="ja">\n<head>\n<meta charset="utf-8">\n'
         '<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">\n'
         '%s%s<title>%s</title>\n%s%s%s'
-    ) % (robots, desc, e(title), canon, og, links)
+    ) % (robots, desc, e(title), canon, social, links)
 
 
 # ---- ストア（統一デザイン） --------------------------------------------------
@@ -94,14 +107,14 @@ def store_shell(site, title, body, root, genres, used_genres, description="", og
     h = head(title, ["_store/store.css", "_store/games-theme.css"], root, site, description, og, canonical)
     return (
         h + "</head>\n" +
-        '<body class="store">\n<header class="top"><a class="logo" href="%s">HENIQ GAMES</a>'
+        '<body class="store">\n<header class="top"><a class="logo" href="%s" aria-label="HENIQ GAMES トップ"><img src="%s_store/heniq-logo.png" alt="HENIQ" width="138" height="17"><span class="logo-games">GAMES</span></a>'
         '<nav class="top-nav" aria-label="ジャンル">%s</nav>'
         '<a class="top-hp" href="%s" rel="noopener">HENIQ 公式サイト<span aria-hidden="true"> &#8599;</span></a></header>\n<main>\n%s\n</main>\n'
         '<footer class="foot"><a href="%sprivacy/">プライバシー</a><a href="mailto:%s">お問い合わせ</a>'
         '<a href="%s" rel="noopener">HENIQ 公式サイト</a><small>&copy; HENIQ</small></footer>\n'
         '<script type="module" src="%splatform/ui/layoutcheck.js"></script>\n'
         '<script type="module" src="%s_store/store.js"></script>\n</body>\n</html>\n'
-    ) % (root, nav_genres(genres, used_genres, root), e(hp_url(site)), body, root, e(site["support_email"]), e(hp_url(site)), root, root)
+    ) % (root, root, nav_genres(genres, used_genres, root), e(hp_url(site)), body, root, e(site["support_email"]), e(hp_url(site)), root, root)
 
 
 def filter_bar(genres, used):
@@ -132,8 +145,13 @@ def store_index(games, genres, site):
         parts.append('<section class="block"><h2 class="label">GENRES</h2><div class="genre-tiles">%s</div></section>' % "".join(
             '<a class="genre-tile" href="genre/%s/"><strong>%s</strong><span>%s</span></a>' % (x["id"], e(x["label"]), e(x["description"]))
             for x in genres if x["id"] in used))
+    og = None
+    for g in featured:
+        if (g["_store"].get("images") or {}).get("og"):
+            og = "%s/%s/about/art/%s" % (site["site_url"], g["id"], g["_store"]["images"]["og"])
+            break
     return store_shell(site, site["name"], "\n".join(parts), "", genres, used,
-                       "URL を開くだけで遊べる、無料のブラウザゲーム。", canonical=site["site_url"] + "/")
+                       "URL を開くだけで遊べる、無料のブラウザゲーム。", og, canonical=site["site_url"] + "/")
 
 
 def genre_page(genre, games, all_games, genres, site):
@@ -163,7 +181,8 @@ def privacy_page(games, genres, site):
         '<p>配信：%s。アクセスに伴う通信情報（IP アドレスなど）は、配信事業者が処理します。</p>'
         '<p>お問い合わせ：<a href="mailto:%s">%s</a></p></section>%s'
     ) % (note, e(site["hosting"]), e(site["support_email"]), e(site["support_email"]), "".join(rows))
-    return store_shell(site, "PRIVACY | %s" % site["name"], body, "../", genres, used, "HENIQ GAMES が扱う情報について")
+    return store_shell(site, "PRIVACY | %s" % site["name"], body, "../", genres, used, "HENIQ GAMES が扱う情報について",
+                       canonical="%s/privacy/" % site["site_url"])
 
 
 def not_found_page(games, genres, site):
@@ -181,7 +200,7 @@ def feed(games, genres):
         out.append({
             "id": g["id"], "title": g["title"], "kind": g["kind"], "genre": g["genre"],
             "genre_label": genre_label(genres, g["genre"]), "tags": g["tags"], "tagline": g["tagline"],
-            "summary": g["summary"], "status": g["status"], "release_date": g.get("release_date"),
+            "summary": g["summary"], "status": g["status"], "release_label": g.get("release_label"), "release_date": g.get("release_date"),
             "platforms": platforms(g), "ranking": bool(g["features"].get("ranking")),
             "play_url": "%s/" % g["id"] if g["kind"] == "web" else None,
             "about_url": "%s/about/" % g["id"], "app_store_url": g.get("app_store_url"),
@@ -207,7 +226,7 @@ def about_page(g, genres, site, has_theme):
     root = "../../"
     h = head("%s | %s" % (g["title"], site["name"]), [], root, site, g["summary"],
              "%s/%s/about/art/%s" % (site["site_url"], g["id"], images["og"]) if "og" in images else None,
-             "%s/%s/about/" % (site["site_url"], g["id"]))
+             "%s/%s/about/" % (site["site_url"], g["id"]), "article")
     h += '<link rel="stylesheet" href="%splatform/ui/about-base.css">\n<link rel="stylesheet" href="vars.css">\n' % root
     if has_theme:
         h += '<link rel="stylesheet" href="theme.css">\n'
