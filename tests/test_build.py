@@ -34,7 +34,8 @@ class StoreBuildTest(unittest.TestCase):
     def test_store_pages(self):
         for f in ("index.html", "genre/casual/index.html", "genre/action/index.html", "privacy/index.html", "games.json"):
             self.assertTrue((self.dist / f).exists(), f)
-        self.assertFalse((self.dist / "genre/race/index.html").exists())  # 掲載 0 件のジャンルは作らない
+        self.assertTrue((self.dist / "genre/race/index.html").exists())
+        self.assertFalse((self.dist / "genre/horror/index.html").exists())  # 掲載 0 件のジャンルは作らない
 
     # ---- ブラウザゲームと iOS の区別 ----
     def test_feed_distinguishes_web_and_ios(self):
@@ -157,21 +158,23 @@ class StoreBuildTest(unittest.TestCase):
         for needle in ("プライバシー", "release_date", "card", "hero", "og", "スクリーンショット", "app_store_url"):
             self.assertIn(needle, text)
 
-    def test_ball_dodge_is_release_ready_except_owner_decisions(self):
-        # BALL DODGE は素材・文章・申告がそろっている。残るのは、オーナーの判断（公開日・プライバシーの確認）だけ
+    def test_finished_games_are_release_ready_except_owner_decisions(self):
+        # 完成したゲームは、素材・文章・申告・権利台帳がそろっている。残るのは、オーナーの判断（公開日・プライバシーの確認）だけ
         site = catalog.load_site()
-        g = dict(next(x for x in catalog.load_games(catalog.load_genres()) if x["id"] == "ball-dodge"), status="published")
-        blockers = catalog.release_blockers([g], dict(site, privacy_finalized=False))
-        self.assertEqual(len(blockers), 2, blockers)
-        self.assertTrue(any("プライバシー" in b for b in blockers))
-        self.assertTrue(any("release_date" in b for b in blockers))
-        ready = catalog.release_blockers([dict(g, release_date="2026-12-01")], dict(site, privacy_finalized=True))
-        self.assertEqual(ready, [])
+        games = {x["id"]: x for x in catalog.load_games(catalog.load_genres())}
+        for gid in ("ball-dodge", "crowd-sprint", "crowd-sprint-3d"):
+            g = dict(games[gid], status="published")
+            blockers = catalog.release_blockers([g], dict(site, privacy_finalized=False))
+            self.assertEqual(len(blockers), 2, (gid, blockers))
+            self.assertTrue(any("プライバシー" in b for b in blockers))
+            self.assertTrue(any("release_date" in b for b in blockers))
+            ready = catalog.release_blockers([dict(g, release_date="2026-12-01")], dict(site, privacy_finalized=True))
+            self.assertEqual(ready, [], gid)
 
     def test_asset_licenses_ledger(self):
         text = (ROOT / "ASSET_LICENSES.md").read_text(encoding="utf-8")
         for g in catalog.load_games(catalog.load_genres()):
-            self.assertRegex(text, r"(?m)^## %s\b" % re.escape(g["id"]))
+            self.assertRegex(text, r"(?m)^## %s(?![\w-])" % re.escape(g["id"]))
         # 台帳にない published のゲームは、公開の関門で止まる
         site = catalog.load_site()
         g = dict(next(x for x in catalog.load_games(catalog.load_genres()) if x["id"] == "ball-dodge"), status="published", id="no-such-ledger")

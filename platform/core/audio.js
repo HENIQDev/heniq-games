@@ -51,6 +51,34 @@ export function createAudio() {
     o.stop(t0 + dur + 0.02);
   }
 
+  // ノイズ（風・衝突・足音など）：帯域フィルタをかけて短く鳴らす
+  let noiseBuf = null;
+  function noise({ dur = 0.15, vol = 0.2, f = 1200, to = null, q = 1, delay = 0, type = 'bandpass' }) {
+    if (muted || !ensure() || ctx.state !== 'running') return;
+    if (!noiseBuf) {
+      noiseBuf = ctx.createBuffer(1, ctx.sampleRate, ctx.sampleRate);
+      const d = noiseBuf.getChannelData(0);
+      let a = 12345;
+      for (let i = 0; i < d.length; i++) { a = (a * 1664525 + 1013904223) >>> 0; d[i] = (a / 4294967296) * 2 - 1; }
+    }
+    const t0 = ctx.currentTime + delay;
+    const src = ctx.createBufferSource();
+    src.buffer = noiseBuf;
+    src.loop = true;
+    const flt = ctx.createBiquadFilter();
+    flt.type = type;
+    flt.Q.value = q;
+    flt.frequency.setValueAtTime(f, t0);
+    if (to) flt.frequency.exponentialRampToValueAtTime(Math.max(20, to), t0 + dur);
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0.0001, t0);
+    g.gain.exponentialRampToValueAtTime(vol, t0 + 0.01);
+    g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+    src.connect(flt).connect(g).connect(master);
+    src.start(t0);
+    src.stop(t0 + dur + 0.02);
+  }
+
   function setMuted(v) {
     muted = !!v;
     saveNumber('mute', muted ? 1 : 0);
@@ -67,7 +95,8 @@ export function createAudio() {
     const stepMs = 60000 / def.bpm / 2;
     bgmTimer = setInterval(() => {
       if (!bgmOn) return;
-      const n = def.notes[bgmStep % def.notes.length];
+      if (def.step) def.step(bgmStep, api);
+      const n = def.notes ? def.notes[bgmStep % def.notes.length] : 0;
       if (n) tone({ f: n, dur: stepMs / 1000 * 0.9, type: 'triangle', vol: 0.09 });
       if (def.bass && bgmStep % 4 === 0) {
         const b = def.bass[(bgmStep / 4) % def.bass.length | 0];
@@ -81,8 +110,9 @@ export function createAudio() {
     clearInterval(bgmTimer);
   }
 
-  return {
+  const api = {
     tone,
+    noise,
     unlock,
     startBgm,
     stopBgm,
@@ -93,4 +123,5 @@ export function createAudio() {
     // 音が鳴る状態か（自動テスト用）
     get running() { return !!ctx && ctx.state === 'running'; },
   };
+  return api;
 }

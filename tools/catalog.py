@@ -184,7 +184,7 @@ def release_blockers(games, site):
     license_text = licenses.read_text(encoding="utf-8") if licenses.exists() else ""
     for g in published:
         gid, store = g["id"], g["_store"]
-        if not re.search(r"^## %s\b" % re.escape(gid), license_text, re.M):
+        if not re.search(r"^## %s(?![\w-])" % re.escape(gid), license_text, re.M):
             out.append("%s: ASSET_LICENSES.md に権利情報の節（## %s）がありません" % (gid, gid))
         art = g["_dir"] / "store" / "art"
         if not g.get("release_date"):

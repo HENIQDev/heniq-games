@@ -17,6 +17,8 @@ html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text);
 .hg-mute:focus-visible { outline: 2px solid var(--hg-accent, var(--accent)); }
 .hg-link { color: var(--hg-muted, var(--muted)); font-size: 0.85em; }
 .hg-canvas { display: block; width: 100%; height: 100%; touch-action: none; outline: none; }
+.hg-gl { position: absolute; inset: 0; pointer-events: none; }
+.hg-over2d { position: absolute; inset: 0; background: transparent; }
 .hg-overlay { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; background: var(--hg-overlay, rgb(0 0 0 / 0.62)); color: var(--hg-text, var(--text)); }
 .hg-hidden { display: none; }
 .hg-panel { display: flex; flex-direction: column; align-items: center; gap: 0.7em; padding: 1.2em; max-width: 92%; text-align: center; }

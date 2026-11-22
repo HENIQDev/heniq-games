@@ -34,6 +34,20 @@ export function startGame(def) {
   const overlay = el('div', 'hg-overlay');
   stage.append(canvas, overlay);
   root.append(stage);
+  // WebGL2 を使うゲーム（def.gl）：3D 用の Canvas を、操作・HUD 用の 2D Canvas の下に重ねる
+  let glCanvas = null;
+  let gl = null;
+  let glLost = false;
+  if (def.gl) {
+    glCanvas = el('canvas', 'hg-canvas hg-gl');
+    canvas.classList.add('hg-over2d');
+    stage.insertBefore(glCanvas, canvas);
+    try {
+      gl = glCanvas.getContext('webgl2', { antialias: false, alpha: false, depth: true, stencil: false, powerPreference: 'high-performance', preserveDrawingBuffer: !!def.gl.preserve });
+    } catch (e) { gl = null; }
+    glCanvas.addEventListener('webglcontextlost', (e) => { e.preventDefault(); glLost = true; });
+    glCanvas.addEventListener('webglcontextrestored', () => { glLost = false; if (game && game.restoreGL) game.restoreGL(gl); if (game) draw(); });
+  }
   const muteBtn = el('button', 'hg-mute');
   muteBtn.type = 'button';
   const syncMute = () => {
@@ -55,6 +69,20 @@ export function startGame(def) {
   let raf = 0;
   let best = loadNumber(bestKey, NaN);
   let runCount = 0;
+  // フレームの統計：直近 600 フレームの間隔・CPU 時間・入力遅延（ゲーム内の ?perf=1 やベンチが使う）
+  const stat = { dt: [], cpu: [], lat: [], last: 0 };
+  const pushStat = (arr, v) => { arr.push(v); if (arr.length > 600) arr.shift(); };
+  const pct = (arr, p) => { if (!arr.length) return 0; const a = [...arr].sort((x, y) => x - y); return a[Math.min(a.length - 1, Math.floor(a.length * p))]; };
+  const avg = (arr) => (arr.length ? arr.reduce((x, y) => x + y, 0) / arr.length : 0);
+  const stats = {
+    reset() { stat.dt.length = 0; stat.cpu.length = 0; stat.lat.length = 0; stat.last = 0; },
+    get() {
+      return {
+        frames: stat.dt.length, fps: stat.dt.length ? 1000 / avg(stat.dt) : 0, dtAvg: avg(stat.dt), dtP95: pct(stat.dt, 0.95), dtMax: Math.max(0, ...stat.dt),
+        cpuAvg: avg(stat.cpu), cpuP95: pct(stat.cpu, 0.95), cpuMax: Math.max(0, ...stat.cpu), latAvg: avg(stat.lat), latMax: Math.max(0, ...stat.lat),
+      };
+    },
+  };
   let held = false; // スクリーンショットなどの確認用：true の間は自動で進めない
   const hasBest = () => Number.isFinite(best);
 
@@ -72,6 +100,7 @@ export function startGame(def) {
     canvas.height = Math.round(h * dpr);
     g.setTransform(canvas.width / size.width, 0, 0, canvas.height / size.height, 0, 0);
     overlay.style.fontSize = Math.max(12, Math.round(w / 24)) + 'px';
+    if (game && game.onResize) game.onResize(w, h, dpr);
     if (game && state !== 'playing') draw();
   }
 
@@ -81,7 +110,14 @@ export function startGame(def) {
     overlay.classList.toggle('hg-hidden', kind === null);
     if (kind === null) return;
     const box = el('div', 'hg-panel');
-    if (kind === 'title') {
+    if (kind === 'nogl') {
+      box.append(el('h2', 'hg-over', def.title));
+      box.append(el('p', 'hg-tagline', 'このゲームは WebGL2 に対応したブラウザが必要です。'));
+      box.append(el('p', 'hg-how', 'iPhone は iOS 15 以降の Safari、PC は最新の Chrome・Edge・Firefox・Safari でお試しください。'));
+      const home = el('a', 'hg-btn hg-primary', 'ゲーム一覧');
+      home.href = '../';
+      box.append(home);
+    } else if (kind === 'title') {
       box.append(el('h1', 'hg-title', def.title));
       if (def.tagline) box.append(el('p', 'hg-tagline', def.tagline));
       const how = el('div', 'hg-how');
@@ -93,8 +129,9 @@ export function startGame(def) {
       about.href = 'about/';
       box.append(about);
     } else if (kind === 'over') {
-      box.append(el('h2', 'hg-over', 'GAME OVER'));
+      box.append(el('h2', 'hg-over', def.overTitle || 'GAME OVER'));
       box.append(el('p', 'hg-score', fmt(game.score)));
+      for (const line of game.resultLines || []) box.append(el('p', 'hg-best', line));
       if (game.newBest) box.append(el('p', 'hg-new', 'NEW RECORD'));
       if (hasBest()) box.append(el('p', 'hg-best', 'ベスト  ' + fmt(best)));
       box.append(button('RETRY', 'hg-btn hg-primary', startRun));
@@ -119,7 +156,7 @@ export function startGame(def) {
   // ---- 進行 ----
   function newGame(seed) {
     const rng = createRng(seed);
-    game = def.create({ rng, input, audio, reducedMotion, get best() { return hasBest() ? best : 0; }, width: size.width, height: size.height });
+    game = def.create({ rng, input, audio, reducedMotion, runCount, gl, glCanvas, stats, stageSize: () => ({ w: stage.clientWidth, h: stage.clientHeight, dpr: Math.min(window.devicePixelRatio || 1, 2) }), get best() { return hasBest() ? best : 0; }, width: size.width, height: size.height });
     game.seed = seed;
     game.newBest = false;
   }
@@ -132,6 +169,7 @@ export function startGame(def) {
     input.setEnabled(true);
     acc = 0;
     last = performance.now();
+    stat.last = 0;
     showOverlay(null);
     canvas.focus({ preventScroll: true });
     if (def.bgm) audio.startBgm(def.bgm);
@@ -175,6 +213,7 @@ export function startGame(def) {
   }
 
   function draw() {
+    if (gl && !glLost && game.drawGL) game.drawGL(gl);
     g.save();
     game.draw(g);
     g.restore();
@@ -183,6 +222,9 @@ export function startGame(def) {
   function frame(now) {
     if (state !== 'playing') return;
     if (held) { draw(); raf = requestAnimationFrame(frame); return; }
+    const t0 = performance.now();
+    if (stat.last) pushStat(stat.dt, now - stat.last);
+    stat.last = now;
     acc += Math.min((now - last) / 1000, MAX_FRAME);
     last = now;
     while (acc >= STEP && state === 'playing') {
@@ -191,6 +233,9 @@ export function startGame(def) {
     }
     if (state === 'playing') {
       draw();
+      pushStat(stat.cpu, performance.now() - t0);
+      const stamp = input.takeStamp();
+      if (stamp) pushStat(stat.lat, performance.now() - stamp);
       raf = requestAnimationFrame(frame);
     }
   }
@@ -214,7 +259,7 @@ export function startGame(def) {
   newGame(1);
   fit();
   draw();
-  showOverlay('title');
+  showOverlay(def.gl && !gl ? 'nogl' : 'title');
 
   // 自己テストやデバッグ用（ゲームの進行そのものを操作する口。ランキングなどの外部には出さない）
   const controller = {
@@ -227,6 +272,9 @@ export function startGame(def) {
     hold(v) { held = !!v; },
     get runCount() { return runCount; },
     audio,
+    stats,
+    gl,
+    get glLost() { return glLost; },
   };
   if (/[?&]selftest=1/.test(location.search)) {
     import('./selftest.js').then((m) => m.runSelfTest(controller, def));

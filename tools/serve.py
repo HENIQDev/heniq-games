@@ -19,11 +19,21 @@ class Handler(http.server.SimpleHTTPRequestHandler):
         pass
 
 
-def make_server(port=8790):
-    return http.server.ThreadingHTTPServer(("127.0.0.1", port), functools.partial(Handler, directory=str(DIST)))
+def make_server(port=8790, host="127.0.0.1"):
+    return http.server.ThreadingHTTPServer((host, port), functools.partial(Handler, directory=str(DIST)))
 
 
 if __name__ == "__main__":
-    port = int(sys.argv[1]) if len(sys.argv) > 1 else 8790
-    print(f"http://127.0.0.1:{port}/  （Ctrl+C で停止）")
-    make_server(port).serve_forever()
+    args = [a for a in sys.argv[1:] if not a.startswith("--")]
+    port = int(args[0]) if args else 8790
+    lan = "--lan" in sys.argv
+    if lan:
+        import socket
+        try:
+            ip = socket.gethostbyname(socket.gethostname())
+        except OSError:
+            ip = "<Mac の IP>"
+        print("【LAN モード】同じ Wi-Fi の端末から http://%s:%d/ で開けます。実機の確認が終わったら Ctrl+C で止めてください。" % (ip, port))
+    else:
+        print("http://127.0.0.1:%d/  （Ctrl+C で停止）" % port)
+    make_server(port, "0.0.0.0" if lan else "127.0.0.1").serve_forever()

@@ -10,8 +10,10 @@ export function runSelfTest(c, def) {
     // 操作を与えながら進める（最大 10 分相当）。操作が効いてもいつかは終わる必要がある。
     let frames = 0;
     const cx = def.width / 2;
+    // 入力は「ゲーム内の時間」で決める（カウントダウンの長さがプレイごとに違っても、同じ入力になるように）
+    const clock = (f) => (c.game.simTime !== undefined ? c.game.simTime * 60 : f);
     while (c.state === 'playing' && frames < 60 * 600) {
-      c.input.inject.pointer(cx + Math.sin(frames / 50) * cx * 0.8, def.height * 0.8, true);
+      c.input.inject.pointer(cx + Math.sin(clock(frames) / 50) * cx * 0.8, def.height * 0.8, true);
       c.step(1 / 60);
       frames += 1;
     }
@@ -23,7 +25,7 @@ export function runSelfTest(c, def) {
     // 同じ種・同じ入力なら同じ結果（将来のリプレイ検証の前提）
     let f2 = 0;
     while (c.state === 'playing' && f2 < 60 * 600) {
-      c.input.inject.pointer(cx + Math.sin(f2 / 50) * cx * 0.8, def.height * 0.8, true);
+      c.input.inject.pointer(cx + Math.sin(clock(f2) / 50) * cx * 0.8, def.height * 0.8, true);
       c.step(1 / 60);
       f2 += 1;
     }

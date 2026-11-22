@@ -19,6 +19,7 @@ python3 tools/new_game.py <id> --title "…" --genre casual   # ゲームを追�
 |---|---|---|
 | `ball-dodge` | WEB | **9 段階を完了**（draft。公開は承認待ち） |
 | `stone-dash` | iOS | 掲載データの下書き（draft。App Store の URL は未設定） |
-| `crowd-sprint` | WEB | 設計メモ済み（`docs/M2_CROWD_SPRINT_DESIGN.md`）。BALL DODGE の後 |
+| `crowd-sprint-3d` | WEB | **完成版（WebGL2 の 3D・800 人全員が 3D モデル。実際の順位 800 位〜）**。draft。iPhone 実機の計測は未実施 |
+| `crowd-sprint` | WEB | 2D 比較版（Canvas 2D の疑似 3D）。比較用に保持 |
 
 資料：[ルール](CLAUDE.md)／[運用フロー](docs/GAME_PIPELINE.md)／[ポータル設計](docs/PORTAL_DESIGN.md)／[設計](docs/DESIGN.md)／[進捗](docs/PROGRESS.md)

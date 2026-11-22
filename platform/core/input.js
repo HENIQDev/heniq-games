@@ -13,6 +13,15 @@ export function createInput(canvas, size) {
   const pointer = { x: 0, y: 0, active: false };
   const pressedOnce = new Set();
   let enabled = false;
+  // ゾーン入力（マルチタッチ）：ボタンなどの領域を宣言すると、指ごとに追跡する。ゾーン外の指は、従来の pointer（なぞる操作）になる
+  let zones = [];
+  const zoneDownSet = new Set();
+  const zonePressedSet = new Set();
+  const zonePointers = new Map(); // pointerId -> ゾーン名
+  let stamp = 0; // 反映されていない入力の、いちばん早い時刻（入力遅延の計測用）
+  const mark = (e) => { if (!stamp) stamp = e.timeStamp || performance.now(); };
+  let touchSeen = typeof matchMedia === 'function' && matchMedia('(pointer: coarse)').matches;
+  const hit = (z, x, y) => (z.shape === 'circle' ? Math.hypot(x - z.x, y - z.y) <= z.r : x >= z.x && x <= z.x + z.w && y >= z.y && y <= z.y + z.h);
 
   const toLogical = (e) => {
     const r = canvas.getBoundingClientRect();
@@ -21,6 +30,7 @@ export function createInput(canvas, size) {
   };
 
   const onKeyDown = (e) => {
+    mark(e);
     if (enabled && BLOCK_DEFAULT.has(e.code)) e.preventDefault();
     if (!down.has(e.code)) pressedOnce.add(e.code);
     down.add(e.code);
@@ -28,12 +38,35 @@ export function createInput(canvas, size) {
   const onKeyUp = (e) => down.delete(e.code);
   const onBlur = () => { down.clear(); pointer.active = false; };
   const onPointerDown = (e) => {
+    mark(e);
+    if (e.pointerType === 'touch') touchSeen = true;
+    if (zones.length) {
+      const r = canvas.getBoundingClientRect();
+      const lx = ((e.clientX - r.left) / r.width) * size.width;
+      const ly = ((e.clientY - r.top) / r.height) * size.height;
+      const z = zones.find((q) => hit(q, lx, ly));
+      if (z) {
+        zonePointers.set(e.pointerId, z.name);
+        zoneDownSet.add(z.name);
+        zonePressedSet.add(z.name);
+        try { canvas.setPointerCapture(e.pointerId); } catch (err) { /* 無視 */ }
+        return;
+      }
+    }
     toLogical(e);
     pointer.active = true;
     try { canvas.setPointerCapture(e.pointerId); } catch (err) { /* 無視 */ }
   };
-  const onPointerMove = (e) => { if (pointer.active || e.pointerType === 'mouse') toLogical(e); };
-  const onPointerUp = () => { pointer.active = false; };
+  const onPointerMove = (e) => { if (zonePointers.has(e.pointerId)) return; if (pointer.active || e.pointerType === 'mouse') toLogical(e); };
+  const onPointerUp = (e) => {
+    const name = zonePointers.get(e.pointerId);
+    if (name) {
+      zonePointers.delete(e.pointerId);
+      if (![...zonePointers.values()].includes(name)) zoneDownSet.delete(name);
+      return;
+    }
+    pointer.active = false;
+  };
 
   window.addEventListener('keydown', onKeyDown);
   window.addEventListener('keyup', onKeyUp);
@@ -45,7 +78,7 @@ export function createInput(canvas, size) {
 
   return {
     pointer,
-    setEnabled(v) { enabled = v; if (!v) { down.clear(); pointer.active = false; } },
+    setEnabled(v) { enabled = v; if (!v) { down.clear(); pointer.active = false; zoneDownSet.clear(); zonePointers.clear(); } },
     // キーボードの向き（斜めは正規化する）
     axis() {
       let x = 0, y = 0;
@@ -53,12 +86,17 @@ export function createInput(canvas, size) {
       const len = Math.hypot(x, y);
       return len > 1 ? { x: x / len, y: y / len } : { x, y };
     },
+    setZones(list) { zones = list; },
+    takeStamp() { const t = stamp; stamp = 0; return t; },
+    zoneDown: (name) => zoneDownSet.has(name),
+    zonePressed: (name) => zonePressedSet.delete(name),
+    get touchSeen() { return touchSeen; },
     isDown: (code) => down.has(code),
     // 押された瞬間だけ true（1 回読むと消える）
     wasPressed(code) { return pressedOnce.delete(code); },
-    clearPressed() { pressedOnce.clear(); },
+    clearPressed() { pressedOnce.clear(); zonePressedSet.clear(); },
     // 自己テスト用：入力を直接与える
-    inject: { down: (c) => down.add(c), up: (c) => down.delete(c), pointer: (x, y, active) => { pointer.x = x; pointer.y = y; pointer.active = active; } },
+    inject: { zone: (n, on) => { if (on) { if (!zoneDownSet.has(n)) zonePressedSet.add(n); zoneDownSet.add(n); } else zoneDownSet.delete(n); }, down: (c) => down.add(c), up: (c) => down.delete(c), pointer: (x, y, active) => { pointer.x = x; pointer.y = y; pointer.active = active; } },
     destroy() {
       window.removeEventListener('keydown', onKeyDown);
       window.removeEventListener('keyup', onKeyUp);

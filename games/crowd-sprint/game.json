@@ -1,0 +1,38 @@
+{
+  "id": "crowd-sprint",
+  "title": "CROWD SPRINT 2D（比較版）",
+  "kind": "web",
+  "genre": "race",
+  "tags": [
+    "100m走",
+    "大人数",
+    "追い抜き"
+  ],
+  "tagline": "最後尾から、1 位へ。大行列の 100m 走。",
+  "summary": "【比較用】Canvas 2D の疑似 3D 版。完成版は 3D 版（CROWD SPRINT）。",
+  "status": "draft",
+  "release_date": null,
+  "play_time": "約 20 秒",
+  "tech": "canvas2d",
+  "controls": {
+    "pc": "← → 移動／Shift ダッシュ／Space ジャンプ",
+    "touch": "なぞって移動／DASH・JUMP ボタン"
+  },
+  "score": {
+    "unit": "rank",
+    "order": "low",
+    "label": "ゴールの順位"
+  },
+  "features": {
+    "ranking": false
+  },
+  "data": {
+    "local_storage": [
+      "自己ベストの順位とミュート設定（この端末のブラウザだけに保存。外部へは送らない）"
+    ],
+    "cookies": [],
+    "network": []
+  },
+  "budget_kb": 200,
+  "store_budget_kb": 1500
+}

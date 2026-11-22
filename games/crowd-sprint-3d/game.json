@@ -1,0 +1,39 @@
+{
+  "id": "crowd-sprint-3d",
+  "title": "CROWD SPRINT",
+  "kind": "web",
+  "genre": "race",
+  "tags": [
+    "100m走",
+    "大人数",
+    "3D",
+    "追い抜き"
+  ],
+  "tagline": "最後尾の 800 位から、1 位へ。800 人が走る、本物の 3D 大行列。",
+  "summary": "800 人が一斉に走る 100m 走。ランナー全員が 3D のキャラクター。最後尾の 800 位からスタートして、人をよけて、追い抜いて、順位を駆け上がれ。",
+  "status": "draft",
+  "release_date": null,
+  "play_time": "約 20 秒",
+  "tech": "webgl2",
+  "controls": {
+    "pc": "← → 移動／Shift ダッシュ／Space ジャンプ",
+    "touch": "なぞって移動／DASH・JUMP ボタン"
+  },
+  "score": {
+    "unit": "rank",
+    "order": "low",
+    "label": "ゴールの順位"
+  },
+  "features": {
+    "ranking": false
+  },
+  "data": {
+    "local_storage": [
+      "自己ベストの順位とミュート設定（この端末のブラウザだけに保存。外部へは送らない）"
+    ],
+    "cookies": [],
+    "network": []
+  },
+  "budget_kb": 400,
+  "store_budget_kb": 1500
+}
