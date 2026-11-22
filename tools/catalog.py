@@ -180,8 +180,12 @@ def release_blockers(games, site):
     published = [g for g in games if g["status"] == "published"]
     if published and not site.get("privacy_finalized"):
         out.append("プライバシーのページが確認前です（catalog/site.json の privacy_finalized が false）")
+    licenses = (ROOT / "ASSET_LICENSES.md")
+    license_text = licenses.read_text(encoding="utf-8") if licenses.exists() else ""
     for g in published:
         gid, store = g["id"], g["_store"]
+        if not re.search(r"^## %s\b" % re.escape(gid), license_text, re.M):
+            out.append("%s: ASSET_LICENSES.md に権利情報の節（## %s）がありません" % (gid, gid))
         art = g["_dir"] / "store" / "art"
         if not g.get("release_date"):
             out.append("%s: release_date がありません" % gid)

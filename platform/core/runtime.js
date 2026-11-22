@@ -3,6 +3,7 @@
 import { createInput } from './input.js';
 import { createRng, newSeed } from './rng.js';
 import { loadNumber, saveNumber } from './storage.js';
+import { createAudio } from './audio.js';
 
 const STEP = 1 / 60;
 const MAX_FRAME = 0.1;
@@ -22,6 +23,10 @@ export function startGame(def) {
   const bestKey = 'best.' + def.id;
 
   root.classList.add('hg-root');
+  // ゲームごとの見た目（任意）：オーバーレイの色・フォントを CSS 変数で渡す（CSP に合う CSSOM での設定）
+  for (const [k, v] of Object.entries(def.theme || {})) root.style.setProperty('--hg-' + k, v);
+  const audio = createAudio();
+  const reducedMotion = !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
   const stage = el('div', 'hg-stage');
   const canvas = el('canvas', 'hg-canvas');
   canvas.width = size.width;
@@ -29,6 +34,17 @@ export function startGame(def) {
   const overlay = el('div', 'hg-overlay');
   stage.append(canvas, overlay);
   root.append(stage);
+  const muteBtn = el('button', 'hg-mute');
+  muteBtn.type = 'button';
+  const syncMute = () => {
+    muteBtn.textContent = audio.muted ? '♪×' : '♪';
+    muteBtn.setAttribute('aria-label', audio.muted ? '音を出す' : '音を消す');
+    muteBtn.setAttribute('aria-pressed', String(audio.muted));
+  };
+  audio.onMute(syncMute);
+  syncMute();
+  muteBtn.addEventListener('click', () => { audio.unlock(); audio.toggleMute(); muteBtn.blur(); });
+  stage.append(muteBtn);
   const g = canvas.getContext('2d');
   const input = createInput(canvas, size);
 
@@ -39,6 +55,7 @@ export function startGame(def) {
   let raf = 0;
   let best = loadNumber(bestKey, NaN);
   let runCount = 0;
+  let held = false; // スクリーンショットなどの確認用：true の間は自動で進めない
   const hasBest = () => Number.isFinite(best);
 
   // ---- 画面の拡縮（論理サイズを保ったまま、枠にぴったり合わせる） ----
@@ -72,6 +89,9 @@ export function startGame(def) {
       box.append(how);
       if (hasBest()) box.append(el('p', 'hg-best', 'ベスト  ' + fmt(best)));
       box.append(button('START', 'hg-btn hg-primary', startRun));
+      const about = el('a', 'hg-link', 'あそびかた・ゲーム詳細');
+      about.href = 'about/';
+      box.append(about);
     } else if (kind === 'over') {
       box.append(el('h2', 'hg-over', 'GAME OVER'));
       box.append(el('p', 'hg-score', fmt(game.score)));
@@ -99,7 +119,7 @@ export function startGame(def) {
   // ---- 進行 ----
   function newGame(seed) {
     const rng = createRng(seed);
-    game = def.create({ rng, input, width: size.width, height: size.height });
+    game = def.create({ rng, input, audio, reducedMotion, get best() { return hasBest() ? best : 0; }, width: size.width, height: size.height });
     game.seed = seed;
     game.newBest = false;
   }
@@ -114,6 +134,7 @@ export function startGame(def) {
     last = performance.now();
     showOverlay(null);
     canvas.focus({ preventScroll: true });
+    if (def.bgm) audio.startBgm(def.bgm);
     cancelAnimationFrame(raf);
     raf = requestAnimationFrame(frame);
   }
@@ -121,6 +142,7 @@ export function startGame(def) {
   function finish() {
     state = 'over';
     input.setEnabled(false);
+    audio.stopBgm();
     const s = game.score;
     const better = !hasBest() || (order === 'high' ? s > best : s < best);
     if (better) { best = s; saveNumber(bestKey, s); game.newBest = true; }
@@ -132,6 +154,7 @@ export function startGame(def) {
     if (state !== 'playing') return;
     state = 'paused';
     input.setEnabled(false);
+    audio.stopBgm();
     showOverlay('paused');
   }
   function resume() {
@@ -139,6 +162,7 @@ export function startGame(def) {
     state = 'playing';
     input.setEnabled(true);
     showOverlay(null);
+    if (def.bgm) audio.startBgm(def.bgm);
     acc = 0;
     last = performance.now();
     cancelAnimationFrame(raf);
@@ -158,6 +182,7 @@ export function startGame(def) {
 
   function frame(now) {
     if (state !== 'playing') return;
+    if (held) { draw(); raf = requestAnimationFrame(frame); return; }
     acc += Math.min((now - last) / 1000, MAX_FRAME);
     last = now;
     while (acc >= STEP && state === 'playing') {
@@ -175,6 +200,7 @@ export function startGame(def) {
   document.addEventListener('visibilitychange', () => { if (document.hidden) pause(); });
   window.addEventListener('keydown', (e) => {
     if (e.repeat) return;
+    if (e.code === 'KeyM') { audio.unlock(); audio.toggleMute(); return; }
     if (state === 'playing' && (e.code === 'Escape' || e.code === 'KeyP')) pause();
     else if (state === 'paused' && (e.code === 'Escape' || e.code === 'KeyP')) resume();
     else if ((state === 'title' || state === 'over') && (e.code === 'Space' || e.code === 'Enter')) {
@@ -197,7 +223,10 @@ export function startGame(def) {
     input,
     start: startRun,
     step,
+    render: draw,
+    hold(v) { held = !!v; },
     get runCount() { return runCount; },
+    audio,
   };
   if (/[?&]selftest=1/.test(location.search)) {
     import('./selftest.js').then((m) => m.runSelfTest(controller, def));

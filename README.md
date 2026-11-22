@@ -17,7 +17,7 @@ python3 tools/new_game.py <id> --title "…" --genre casual   # ゲームを追�
 
 | ゲーム | 種類 | 状態 |
 |---|---|---|
-| `ball-dodge` | WEB | 基盤・詳細ページの骨組みまで完了。9 段階の仕上げ中（draft） |
+| `ball-dodge` | WEB | **9 段階を完了**（draft。公開は承認待ち） |
 | `stone-dash` | iOS | 掲載データの下書き（draft。App Store の URL は未設定） |
 | `crowd-sprint` | WEB | 設計メモ済み（`docs/M2_CROWD_SPRINT_DESIGN.md`）。BALL DODGE の後 |
 

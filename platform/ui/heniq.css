@@ -11,24 +11,27 @@
 * { box-sizing: border-box; }
 html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text); font-family: var(--font); overscroll-behavior: none; }
 
-.hg-root { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; background: #050505; touch-action: none; -webkit-user-select: none; user-select: none; }
+.hg-root { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; background: var(--hg-page, #050505); font-family: var(--hg-font, var(--font)); touch-action: none; -webkit-user-select: none; user-select: none; }
 .hg-stage { position: relative; background: #000; box-shadow: 0 0 0 1px var(--line); }
+.hg-mute { position: absolute; top: 8px; right: 8px; min-width: 44px; min-height: 44px; padding: 0 10px; border: 0; border-radius: 999px; background: var(--hg-mute-bg, rgb(0 0 0 / 0.35)); color: var(--hg-mute-fg, #fff); font: inherit; font-size: 18px; cursor: pointer; z-index: 2; }
+.hg-mute:focus-visible { outline: 2px solid var(--hg-accent, var(--accent)); }
+.hg-link { color: var(--hg-muted, var(--muted)); font-size: 0.85em; }
 .hg-canvas { display: block; width: 100%; height: 100%; touch-action: none; outline: none; }
-.hg-overlay { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; background: rgb(0 0 0 / 0.62); }
+.hg-overlay { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; background: var(--hg-overlay, rgb(0 0 0 / 0.62)); color: var(--hg-text, var(--text)); }
 .hg-hidden { display: none; }
 .hg-panel { display: flex; flex-direction: column; align-items: center; gap: 0.7em; padding: 1.2em; max-width: 92%; text-align: center; }
 .hg-title { margin: 0; font-size: 2.2em; letter-spacing: 0.08em; }
-.hg-tagline { margin: 0; color: var(--muted); }
-.hg-how { color: var(--muted); font-size: 0.85em; line-height: 1.6; }
+.hg-tagline { margin: 0; color: var(--hg-muted, var(--muted)); }
+.hg-how { color: var(--hg-muted, var(--muted)); font-size: 0.85em; line-height: 1.6; }
 .hg-how p { margin: 0; }
-.hg-over { margin: 0; font-size: 1.6em; letter-spacing: 0.12em; color: var(--danger); }
+.hg-over { margin: 0; font-size: 1.6em; letter-spacing: 0.12em; color: var(--hg-danger, var(--danger)); }
 .hg-score { margin: 0; font-size: 2.4em; font-weight: 700; font-variant-numeric: tabular-nums; }
-.hg-best { margin: 0; color: var(--muted); font-variant-numeric: tabular-nums; }
-.hg-new { margin: 0; color: var(--accent); letter-spacing: 0.2em; font-size: 0.9em; }
-.hg-btn { display: inline-block; min-width: 9em; padding: 0.8em 1.6em; border: 1px solid #5a5a5a; border-radius: 999px; background: transparent; color: var(--text); font: inherit; letter-spacing: 0.12em; text-decoration: none; cursor: pointer; }
-.hg-btn:hover, .hg-btn:focus-visible { border-color: var(--accent); outline: none; }
-.hg-primary { background: var(--text); color: #000; border-color: var(--text); font-weight: 700; }
-.hg-primary:hover, .hg-primary:focus-visible { background: var(--accent); border-color: var(--accent); }
+.hg-best { margin: 0; color: var(--hg-muted, var(--muted)); font-variant-numeric: tabular-nums; }
+.hg-new { margin: 0; color: var(--hg-accent, var(--accent)); letter-spacing: 0.2em; font-size: 0.9em; }
+.hg-btn { display: inline-block; min-width: 9em; padding: 0.8em 1.6em; border: var(--hg-btn-border, 1px solid #5a5a5a); border-radius: 999px; background: transparent; color: var(--hg-text, var(--text)); font: inherit; letter-spacing: 0.12em; text-decoration: none; cursor: pointer; }
+.hg-btn:hover, .hg-btn:focus-visible { border-color: var(--hg-accent, var(--accent)); outline: none; }
+.hg-primary { background: var(--hg-primary-bg, var(--text)); color: var(--hg-primary-fg, #000); border-color: var(--hg-primary-bg, var(--text)); font-weight: 700; box-shadow: var(--hg-primary-shadow, none); }
+.hg-primary:hover, .hg-primary:focus-visible { background: var(--hg-primary-hover, var(--accent)); border-color: var(--hg-primary-hover, var(--accent)); }
 
 /* 一覧ページ */
 .hg-catalog { max-width: 1000px; margin: 0 auto; padding: 48px 20px 80px; }

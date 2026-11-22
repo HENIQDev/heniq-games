@@ -103,6 +103,17 @@ class BrowserTest(unittest.TestCase):
                 self.chrome("_harness/?w=%d&u=/%s" % (width, page), (width + 20, 820), "--screenshot=%s" % shot)
                 self.assertTrue(shot.exists() and shot.stat().st_size > 2000, name)
 
+    def test_ball_dodge_balance_bots(self):
+        """バランスの不変条件：何もしないと早く終わる／先読みするボットは長く生き残れるが、いつかは終わる（公平で、終わりがある）。"""
+        dom = self.dom("ball-dodge/?botcheck=1", (480, 800))
+        m = re.search(r'<pre id="bot-result">(.*?)</pre>', dom, re.S)
+        self.assertIsNotNone(m, "ボット検査の結果がありません")
+        r = json.loads(m.group(1).replace("&quot;", '"'))
+        self.assertTrue(all(ms < 12000 for ms in r["idle"]), "何もしないのに 12 秒以上生き残った：%s" % r["idle"])
+        smart = sorted(x["ms"] for x in r["smart"])
+        self.assertGreaterEqual(smart[0], 30000, "先読みボットが 30 秒未満で当たった（理不尽の疑い）：%s" % smart)
+        self.assertTrue(all(x["ended"] for x in r["smart"]), "先読みボットが 150 秒生き残った（難しさが足りない）：%s" % smart)
+
     def test_store_renders(self):
         dom = self.dom("", (1280, 800))
         self.assertIn("HENIQ GAMES", dom)

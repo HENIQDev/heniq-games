@@ -151,13 +151,42 @@ class StoreBuildTest(unittest.TestCase):
     def test_release_blockers(self):
         site = catalog.load_site()
         games = catalog.load_games(catalog.load_genres())
-        g = dict(next(x for x in games if x["id"] == "ball-dodge"), status="published")
-        blockers = catalog.release_blockers([g], dict(site, privacy_finalized=False))
-        text = "\n".join(blockers)
-        for needle in ("プライバシー", "release_date", "card", "hero", "og", "スクリーンショット"):
+        # 素材のそろっていないゲーム（STONE DASH の下書き）は、画像・スクリーンショット・App Store の URL などで止まる
+        s = dict(next(x for x in games if x["id"] == "stone-dash"), status="published")
+        text = "\n".join(catalog.release_blockers([s], dict(site, privacy_finalized=False)))
+        for needle in ("プライバシー", "release_date", "card", "hero", "og", "スクリーンショット", "app_store_url"):
             self.assertIn(needle, text)
-        s = dict(next(x for x in games if x["id"] == "stone-dash"), status="published", release_date="2026-12-01")
-        self.assertIn("app_store_url", "\n".join(catalog.release_blockers([s], site)))
+
+    def test_ball_dodge_is_release_ready_except_owner_decisions(self):
+        # BALL DODGE は素材・文章・申告がそろっている。残るのは、オーナーの判断（公開日・プライバシーの確認）だけ
+        site = catalog.load_site()
+        g = dict(next(x for x in catalog.load_games(catalog.load_genres()) if x["id"] == "ball-dodge"), status="published")
+        blockers = catalog.release_blockers([g], dict(site, privacy_finalized=False))
+        self.assertEqual(len(blockers), 2, blockers)
+        self.assertTrue(any("プライバシー" in b for b in blockers))
+        self.assertTrue(any("release_date" in b for b in blockers))
+        ready = catalog.release_blockers([dict(g, release_date="2026-12-01")], dict(site, privacy_finalized=True))
+        self.assertEqual(ready, [])
+
+    def test_asset_licenses_ledger(self):
+        text = (ROOT / "ASSET_LICENSES.md").read_text(encoding="utf-8")
+        for g in catalog.load_games(catalog.load_genres()):
+            self.assertRegex(text, r"(?m)^## %s\b" % re.escape(g["id"]))
+        # 台帳にない published のゲームは、公開の関門で止まる
+        site = catalog.load_site()
+        g = dict(next(x for x in catalog.load_games(catalog.load_genres()) if x["id"] == "ball-dodge"), status="published", id="no-such-ledger")
+        self.assertTrue(any("ASSET_LICENSES.md" in b for b in catalog.release_blockers([g], site)))
+
+    def test_every_shipped_asset_is_recorded(self):
+        # 同梱している画像・音・フォントのファイルは、台帳（ASSET_LICENSES.md）にファイル名が載っていること
+        text = (ROOT / "ASSET_LICENSES.md").read_text(encoding="utf-8")
+        exts = {".png", ".jpg", ".jpeg", ".webp", ".svg", ".avif", ".mp3", ".wav", ".ogg", ".m4a", ".woff", ".woff2", ".ttf", ".otf"}
+        missing = []
+        for base in ("games", "platform", "store"):
+            for f in (ROOT / base).rglob("*"):
+                if f.is_file() and f.suffix.lower() in exts and f.name not in text and f.stem not in text.replace("shot-*", "shot-play shot-wave shot-over"):
+                    missing.append(str(f.relative_to(ROOT)))
+        self.assertEqual(missing, [])
 
     # ---- 検査 ----
     def test_validation_catches_bad_metadata(self):
