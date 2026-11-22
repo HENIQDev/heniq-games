@@ -202,6 +202,15 @@ class StoreBuildTest(unittest.TestCase):
         self.assertEqual(catalog.release_blockers(games, site), [])
         self.assertTrue(site["privacy_finalized"])
 
+    def test_public_jpegs_have_no_metadata(self):
+        # 公開する画像に、EXIF などのメタデータを残さない（HP の公開情報の検査と同じ方針）
+        import strip_exif
+        bad = []
+        for f in (ROOT / "games").rglob("store/art/*.jpg"):
+            if strip_exif.has_metadata(f.read_bytes()):
+                bad.append(str(f.relative_to(ROOT)))
+        self.assertEqual(bad, [])
+
     def test_asset_licenses_ledger(self):
         text = (ROOT / "ASSET_LICENSES.md").read_text(encoding="utf-8")
         for g in catalog.load_games(catalog.load_genres()):
