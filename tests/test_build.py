@@ -72,7 +72,7 @@ class StoreBuildTest(unittest.TestCase):
                 url = m.group(1)
                 if re.match(r"^(https?:|mailto:|//)", url):
                     continue
-                target = (page.parent / url).resolve()
+                target = ((self.dist / url.lstrip("/")) if url.startswith("/") else (page.parent / url)).resolve()
                 if url.endswith("/"):
                     target = target / "index.html"
                 if not target.exists():
@@ -80,6 +80,14 @@ class StoreBuildTest(unittest.TestCase):
         self.assertEqual(broken, [])
 
     # ---- 方針の検査 ----
+    def test_404_page_exists_and_is_noindex(self):
+        # 404.html が無いと、Cloudflare Pages は存在しない URL（公開していないゲームなど）にも 200 でトップを返してしまう
+        t = (self.dist / "404.html").read_text(encoding="utf-8")
+        self.assertIn("ページが見つかりません", t)
+        self.assertIn('name="robots" content="noindex"', t)
+        self.assertIn('href="/"', t)
+        self.assertIn('href="/_store/store.css"', t)
+
     def test_not_indexable_until_approved(self):
         self.assertIn("Disallow: /", (self.dist / "robots.txt").read_text())
         self.assertFalse((self.dist / "sitemap.xml").exists())

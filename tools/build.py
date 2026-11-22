@@ -124,6 +124,7 @@ def build(release=False, out=None):
         if in_genre:
             write(dist / "genre" / genre["id"] / "index.html", render.genre_page(genre, in_genre, games, genres, site))
     write(dist / "privacy" / "index.html", render.privacy_page(games, genres, site))
+    write(dist / "404.html", render.not_found_page(games, genres, site))
     write(dist / "games.json", render.feed(games, genres))
     write(dist / "_headers", HEADERS)
     if redirects:

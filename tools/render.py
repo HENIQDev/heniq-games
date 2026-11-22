@@ -160,6 +160,14 @@ def privacy_page(games, genres, site):
     return store_shell(site, "PRIVACY | %s" % site["name"], body, "../", genres, used, "HENIQ GAMES が扱う情報について")
 
 
+def not_found_page(games, genres, site):
+    """404 ページ（どの深さの URL でも表示されるので、リンクは / から始まる形）。無いと、Cloudflare Pages は存在しない URL にも 200 でトップを返してしまう。"""
+    used = {g["genre"] for g in games}
+    body = ('<section class="block"><h1 class="label">404</h1><p class="lead">ページが見つかりません。URL をご確認ください。</p>'
+            '<p><a class="btn btn-primary" href="/">HENIQ GAMES のトップへ</a></p></section>')
+    return store_shell(site, "404 | %s" % site["name"], body, "/", genres, used, "")
+
+
 def feed(games, genres):
     out = []
     for g in games:
