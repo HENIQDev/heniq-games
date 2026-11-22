@@ -6,6 +6,11 @@ PLATFORM_LABEL = {"web": "WEB", "ios": "iOS"}
 HP_URL = "https://heniq-website.pages.dev/"
 
 
+def hp_url(site):
+    """HENIQ 公式サイトの URL（catalog/site.json の hp_url）。"""
+    return site.get("hp_url") or HP_URL
+
+
 def e(s):
     return html.escape(str(s), quote=True)
 
@@ -90,12 +95,13 @@ def store_shell(site, title, body, root, genres, used_genres, description="", og
     return (
         h + "</head>\n" +
         '<body class="store">\n<header class="top"><a class="logo" href="%s">HENIQ GAMES</a>'
-        '<nav class="top-nav" aria-label="ジャンル">%s</nav></header>\n<main>\n%s\n</main>\n'
+        '<nav class="top-nav" aria-label="ジャンル">%s</nav>'
+        '<a class="top-hp" href="%s" rel="noopener">HENIQ 公式サイト<span aria-hidden="true"> &#8599;</span></a></header>\n<main>\n%s\n</main>\n'
         '<footer class="foot"><a href="%sprivacy/">プライバシー</a><a href="mailto:%s">お問い合わせ</a>'
-        '<a href="%s" rel="noopener">HENIQ</a><small>&copy; HENIQ</small></footer>\n'
+        '<a href="%s" rel="noopener">HENIQ 公式サイト</a><small>&copy; HENIQ</small></footer>\n'
         '<script type="module" src="%splatform/ui/layoutcheck.js"></script>\n'
         '<script type="module" src="%s_store/store.js"></script>\n</body>\n</html>\n'
-    ) % (root, nav_genres(genres, used_genres, root), body, root, e(site["support_email"]), HP_URL, root, root)
+    ) % (root, nav_genres(genres, used_genres, root), e(hp_url(site)), body, root, e(site["support_email"]), e(hp_url(site)), root, root)
 
 
 def filter_bar(genres, used):
@@ -245,8 +251,8 @@ def about_page(g, genres, site, has_theme):
         info = "".join("<li>%s</li>" % e(x) for x in items) or "<li>端末への保存や外部への送信はありません。</li>"
         body.append('<section class="about-section" id="data"><h2>このゲームが扱う情報</h2><ul>%s</ul>'
                     '<p><a href="%sprivacy/">プライバシーの詳細</a></p></section>' % (info, root))
-    body.append('</main>\n<footer class="hg-foot"><a href="%s">HENIQ GAMES</a><a href="%sprivacy/">プライバシー</a>'
-                '<a href="mailto:%s">お問い合わせ</a></footer>' % (root, root, e(site["support_email"])))
+    body.append('</main>\n<footer class="hg-foot"><a href="%s">HENIQ GAMES</a><a href="%s" rel="noopener">HENIQ 公式サイト</a>'
+                '<a href="%sprivacy/">プライバシー</a><a href="mailto:%s">お問い合わせ</a></footer>' % (root, e(hp_url(site)), root, e(site["support_email"])))
     body.append('<script type="module" src="%splatform/ui/layoutcheck.js"></script>\n</body>\n</html>\n' % root)
     return h + "</head>\n" + "\n".join(body)
 

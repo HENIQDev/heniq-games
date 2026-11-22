@@ -80,6 +80,18 @@ class StoreBuildTest(unittest.TestCase):
         self.assertEqual(broken, [])
 
     # ---- 方針の検査 ----
+    def test_every_page_links_to_the_official_hp(self):
+        # ストア・ジャンル・プライバシー・404・各ゲームの詳細ページのすべてに、HENIQ 公式サイトへのリンクがある
+        hp = catalog.load_site()["hp_url"]
+        self.assertEqual(hp, "https://heniq-website.pages.dev/")
+        pages = ["index.html", "404.html", "privacy/index.html"] + [str(p.relative_to(self.dist)) for p in self.dist.glob("genre/*/index.html")] + [str(p.relative_to(self.dist)) for p in self.dist.glob("*/about/index.html")]
+        self.assertGreaterEqual(len(pages), 6)
+        for page in pages:
+            html = (self.dist / page).read_text(encoding="utf-8")
+            self.assertIn('href="%s" rel="noopener">HENIQ 公式サイト' % hp, html, page)
+        top = (self.dist / "index.html").read_text(encoding="utf-8")
+        self.assertIn('class="top-hp" href="%s"' % hp, top)
+
     def test_404_page_exists_and_is_noindex(self):
         # 404.html が無いと、Cloudflare Pages は存在しない URL（公開していないゲームなど）にも 200 でトップを返してしまう
         t = (self.dist / "404.html").read_text(encoding="utf-8")
