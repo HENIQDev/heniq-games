@@ -7,7 +7,7 @@ import { buildWorld } from './world.js';
 const ONLY = new URLSearchParams(location.search).get('only');   // 計測用：描画する要素を絞る（例 only=sky,ground）
 const want = (k) => !ONLY || ONLY.split(',').includes(k);
 const MAX_INST = 1024;
-const FLOATS = 12;                       // インスタンス 1 体あたりの float 数
+const FLOATS = 16;                       // インスタンス 1 体あたりの float 数
 export const LOD_DIST = [18, 45];        // LOD0 〜18m・LOD1 〜45m・LOD2 それ以遠（遠くも 3D のモデルのまま）
 const FOG = [0.98, 0.68, 0.48];
 
@@ -33,6 +33,7 @@ layout(location=2) in vec2 a_ps;
 layout(location=3) in vec4 i_p;    // x, y(持ち上げ), z, yaw
 layout(location=4) in vec4 i_a;    // 走りの位相, 前傾(pitch), 振りの大きさ, 腕上げ
 layout(location=5) in vec4 i_b;    // 膝の曲げ(ジャンプ), シャツの色番号, 大きさ, 主人公フラグ
+layout(location=6) in vec4 i_c;    // 横倒れ(roll)。転倒で、横向きに倒れる（後ろ上のカメラから見えやすい）
 uniform mat4 u_vp;
 uniform vec3 u_shirt[7];
 ${COMMON}
@@ -66,6 +67,9 @@ vec3 animate(vec3 p, int part, float w) {
   p.y += w * amp * 0.04 * abs(sin(ph));
   p = rotX(p, i_a.y, vec3(0.0));
   p.y += w * 0.14 * sin(i_a.y);
+  float cr = cos(i_c.x), sr = sin(i_c.x);                // 横倒れ：足元を軸に、体を横へ倒す
+  p = vec3(cr * p.x - sr * p.y, sr * p.x + cr * p.y, p.z);
+  p.y += w * 0.13 * abs(sin(i_c.x));
   return p;
 }
 void main() {
@@ -202,7 +206,8 @@ out vec4 o;
 void main() {
   float d = length(v_q);
   if (v_mode < 0.5) o = vec4(0.12, 0.08, 0.2, 0.36 * (1.0 - smoothstep(0.5, 1.0, d)));
-  else o = vec4(0.15, 0.66, 1.0, smoothstep(0.62, 0.7, d) * (1.0 - smoothstep(0.86, 0.94, d)));
+  else if (v_mode < 1.5) o = vec4(0.15, 0.66, 1.0, smoothstep(0.62, 0.7, d) * (1.0 - smoothstep(0.86, 0.94, d)));
+  else o = vec4(1.0, 0.22, 0.25, 0.55 * smoothstep(0.7, 0.78, d) * (1.0 - smoothstep(0.9, 0.97, d)) + 0.16 * (1.0 - smoothstep(0.0, 0.7, d)));
 }`;
 
 function program(gl, vs, fs, label) {
@@ -254,7 +259,7 @@ export function createRenderer(gl) {
     buf(gl.ELEMENT_ARRAY_BUFFER, mesh.indices, gl.STATIC_DRAW);
     const arr = new Float32Array(MAX_INST * FLOATS);
     const ib = buf(gl.ARRAY_BUFFER, arr, gl.DYNAMIC_DRAW);
-    for (let k = 0; k < 3; k++) {
+    for (let k = 0; k < 4; k++) {
       gl.enableVertexAttribArray(3 + k);
       gl.vertexAttribPointer(3 + k, 4, gl.FLOAT, false, FLOATS * 4, k * 16);
       gl.vertexAttribDivisor(3 + k, 1);
@@ -267,7 +272,7 @@ export function createRenderer(gl) {
   gl.bindVertexArray(shVAO);
   buf(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, 1, 1, -1, -1, 1, 1, -1, 1]), gl.STATIC_DRAW);
   gl.enableVertexAttribArray(0); gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 8, 0);
-  const shArr = new Float32Array((MAX_INST + 8) * 4);
+  const shArr = new Float32Array((MAX_INST + 64) * 4);
   const shBuf = buf(gl.ARRAY_BUFFER, shArr, gl.DYNAMIC_DRAW);
   gl.enableVertexAttribArray(1); gl.vertexAttribPointer(1, 4, gl.FLOAT, false, 16, 0); gl.vertexAttribDivisor(1, 1);
   let shN = 0;
@@ -332,7 +337,7 @@ export function createRenderer(gl) {
       stats.culled = 0; stats.submitted = 0;
     },
     // ランナー 1 人を登録：視錐台の外は除外し、距離で LOD を決めて、その LOD のバッファへ書く
-    runner(x, y, z, yaw, phase, pitch, amp, up, tuck, shirt, scale, hero) {
+    runner(x, y, z, yaw, phase, pitch, amp, up, tuck, shirt, scale, hero, roll = 0) {
       const cx = vp[0] * x + vp[4] * (y + 0.9) + vp[8] * z + vp[12];
       const cy = vp[1] * x + vp[5] * (y + 0.9) + vp[9] * z + vp[13];
       const cw = vp[3] * x + vp[7] * (y + 0.9) + vp[11] * z + vp[15];
@@ -346,11 +351,13 @@ export function createRenderer(gl) {
       a[o] = x; a[o + 1] = y; a[o + 2] = z; a[o + 3] = yaw;
       a[o + 4] = phase; a[o + 5] = pitch; a[o + 6] = amp; a[o + 7] = up;
       a[o + 8] = tuck; a[o + 9] = shirt; a[o + 10] = scale; a[o + 11] = hero;
+      a[o + 12] = roll; a[o + 13] = 0; a[o + 14] = 0; a[o + 15] = 0;
       l.n += 1;
       stats.submitted += 1;
       if (shN < MAX_INST) { const s = shN * 4; shArr[s] = x; shArr[s + 1] = z; shArr[s + 2] = 0.5 * scale; shArr[s + 3] = 0; shN += 1; }
     },
-    ring(x, z, r) { if (shN < MAX_INST + 8) { const s = shN * 4; shArr[s] = x; shArr[s + 1] = z; shArr[s + 2] = r; shArr[s + 3] = 1; shN += 1; } },
+    // 輪：mode 1＝主人公の青い輪、mode 2＝転んだ人の危険ゾーン（赤）
+    ring(x, z, r, mode = 1) { if (shN < MAX_INST + 64) { const s = shN * 4; shArr[s] = x; shArr[s + 1] = z; shArr[s + 2] = r; shArr[s + 3] = mode; shN += 1; } },
     draw() {
       collectGpu();
       let q = null;

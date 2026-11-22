@@ -279,5 +279,7 @@ export function startGame(def) {
   if (/[?&]selftest=1/.test(location.search)) {
     import('./selftest.js').then((m) => m.runSelfTest(controller, def));
   }
+  // 検証用（?debug=1）：実際のキー・タッチ操作の確認テストが、状態を読むための口
+  if (/[?&]debug=1/.test(location.search)) window.__heniq = controller;
   return controller;
 }

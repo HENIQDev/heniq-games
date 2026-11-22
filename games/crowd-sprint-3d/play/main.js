@@ -77,6 +77,8 @@ function create(env) {
     get simTime() { return sim.t; },
     get countdown() { return cd; },
     get renderer() { return renderer; },
+    poseOf(i) { return { ...poseOf(i) }; },       // 検証用：アニメーションの姿勢（前傾・振り・腕上げ）
+    playerPose() { return { ...playerPose() }; },
     get resultLines() {
       return [medalOf(sim.finalRank), 'タイム ' + sim.finishTime.toFixed(2) + ' 秒', '追い抜いた人 ' + (RUNNERS - sim.finalRank) + ' 人（全 ' + RUNNERS + ' 人中）'];
     },
@@ -142,10 +144,11 @@ function create(env) {
       for (let i = 0; i < M; i++) {
         if (sim.st[i] === ST.ABSENT) continue;                 // 主人公の枠（NPC ではない）
         const a = poseOf(i);
-        renderer.runner(sim.x[i], 0, sim.z[i], a.yaw, phase[i], a.pitch, a.amp, a.up, 0, sim.col[i], 1 + (i % 7) * 0.012 - 0.04, 0);
+        renderer.runner(sim.x[i], 0, sim.z[i], a.yaw, phase[i], a.pitch, a.amp, a.up, 0, sim.col[i], 1 + (i % 7) * 0.012 - 0.04, 0, a.roll);
+        if (sim.st[i] === ST.FALLEN) renderer.ring(sim.x[i], sim.z[i], 0.95, 2);       // 転んだ人の危険ゾーン
       }
       const pa = playerPose();
-      renderer.runner(p.x, pa.lift, p.z, pa.yaw, pPhase, pa.pitch, pa.amp, pa.up, pa.tuck, 6, 1.04, 1);
+      renderer.runner(p.x, pa.lift, p.z, pa.yaw, pPhase, pa.pitch, pa.amp, pa.up, pa.tuck, 6, 1.04, 1, pa.roll);
       renderer.ring(p.x, p.z, 1.0 + 0.06 * Math.sin(simTime * 8));
       renderer.draw();
     },
@@ -153,6 +156,7 @@ function create(env) {
     // ---- HUD（3D の上に重ねる 2D）----
     draw(g) {
       g.clearRect(0, 0, W, H);
+      if (runCount === 0 || QUERY.has('nohud')) return;   // タイトル画面の背景：3D の景色だけ（HUD やカウントダウンは出さない）。?nohud は計測用
       g.save();
       if (p.dashing && !reducedMotion) drawSpeedLines(g);
       for (const f of fx) { g.globalAlpha = Math.max(0, Math.min(1, f.life * 3)); g.fillStyle = f.color; g.fillRect(f.x, f.y, f.size, f.size); }
@@ -220,7 +224,7 @@ function create(env) {
   }
 
   // ---------------------------------------------------------------- アニメーションの状態（見た目だけ）
-  const poseTmp = { yaw: 0, pitch: 0, amp: 0, up: 0 };
+  const poseTmp = { yaw: 0, pitch: 0, amp: 0, up: 0, roll: 0 };
   function animate(dt) {
     for (let i = 0; i < M; i++) {
       const s = sim.st[i];
@@ -239,31 +243,34 @@ function create(env) {
     const o = poseTmp;
     const s = sim.st[i];
     o.yaw = Math.max(-0.35, Math.min(0.35, sim.vx[i] * 0.14));
+    o.roll = 0;
+    const side = (i & 1) ? 1 : -1;                                   // 倒れる向き（人によって左右が違う）
     if (s === ST.RUN) {
       const v = Math.max(0, sim.vz[i]);
       o.pitch = 0.1 + 0.03 * v; o.amp = Math.min(1, 0.25 + 0.14 * v); o.up = 0;
     } else if (s === ST.STUMBLE) {
       const t = smooth(1 - sim.tm[i] / 0.6);
-      o.pitch = 0.12 + 0.55 * t; o.amp = 0.5; o.up = t;
+      o.pitch = 0.12 + 0.35 * t; o.amp = 0.5; o.up = t; o.roll = side * 0.35 * t;
     } else if (s === ST.FALLEN) {
       const t = 1 - sim.tm[i] / 1.6;
-      o.pitch = lerp(0.67, 1.5, smooth(t / 0.12)); o.amp = 0.1; o.up = 0.55 * (1 - smooth(t * 2.5));
+      const k = smooth(t / 0.14);
+      o.pitch = lerp(0.47, 0.25, k); o.roll = side * lerp(0.35, 1.5, k); o.amp = 0.1; o.up = lerp(1, 0.6, k);
     } else {
       const t = smooth(1 - sim.tm[i] / 0.5);
-      o.pitch = 1.5 * (1 - t); o.amp = 0.3 * t; o.up = 0;
+      o.pitch = 0.25 * (1 - t); o.roll = side * 1.5 * (1 - t); o.amp = 0.3 * t; o.up = 0.4 * (1 - t);
     }
     return o;
   }
-  const pTmp = { yaw: 0, pitch: 0, amp: 0, up: 0, tuck: 0, lift: 0 };
+  const pTmp = { yaw: 0, pitch: 0, amp: 0, up: 0, tuck: 0, lift: 0, roll: 0 };
   function playerPose() {
     const o = pTmp;
-    o.yaw = Math.max(-0.35, Math.min(0.35, p.vx * 0.1)); o.tuck = 0; o.lift = 0; o.up = 0;
+    o.yaw = Math.max(-0.35, Math.min(0.35, p.vx * 0.1)); o.tuck = 0; o.lift = 0; o.up = 0; o.roll = 0;
     o.amp = Math.min(1.15, 0.25 + 0.14 * Math.max(0, p.v));
     o.pitch = 0.1 + 0.03 * p.v + (p.dashing ? 0.22 : 0);
     if (p.fallT > 0) {
       const t = 1 - p.fallT / 1.2;
-      o.pitch = p.fallT < 0.3 ? 1.5 * smooth(p.fallT / 0.3) : lerp(0.5, 1.5, smooth(t / 0.15));
-      o.amp = 0.1; o.up = 0.5;
+      const k = p.fallT < 0.3 ? smooth(p.fallT / 0.3) : smooth(t / 0.15);
+      o.pitch = 0.25 * k + 0.2 * (1 - k); o.roll = 1.5 * k; o.amp = 0.1; o.up = 0.5;
     } else if (p.jumpT > 0) {
       const prog = 1 - p.jumpT / P.jumpTime;
       o.lift = Math.sin(Math.PI * prog) * P.jumpH; o.tuck = Math.sin(Math.PI * prog); o.up = 0.35 * o.tuck;
@@ -413,6 +420,6 @@ const controller = startGame({
   create,
 });
 
-if (/[?&](botcheck|shot|bench|gltest|cpubench)=/.test(location.search)) {
+if (/[?&](botcheck|shot|bench|gltest|cpubench|scenario|soak)=/.test(location.search)) {
   import('./bot.js').then((m) => m.run(controller));
 }

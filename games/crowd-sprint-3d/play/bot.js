@@ -165,8 +165,124 @@ async function bench(c, q) {
   requestAnimationFrame(frame);
 }
 
+
+// ---- シナリオ検証：転倒・復帰・ジャンプ・接触・連鎖・追い抜きを、決まった状況で再現して確かめる ----
+function begin(c, seed, isolate) {
+  c.start(seed); c.hold(true);
+  let guard = 0;
+  while (c.game.countdown > 0 && guard++ < 1000) c.step(1 / 60);
+  const sim = c.game.sim, p = sim.player;
+  if (isolate) for (let i = 0; i < sim.M; i++) { if (sim.st[i] !== 4) { sim.z[i] = p.z + 500 + i * 0.01; sim.x[i] = (i % 20 - 10) * 1.4; } }   // 他の人を遠くへ（状況を単純にする）
+  return { sim, p };
+}
+function put(sim, i, x, z, st, tm) { sim.x[i] = x; sim.z[i] = z; sim.vx[i] = 0; sim.vz[i] = 0; sim.st[i] = st; sim.tm[i] = tm; }
+function names(sim, log) { for (const e of sim.events) log.push({ t: +sim.t.toFixed(2), type: e.type }); }
+function runScenario(c, name) {
+  const out = { name };
+  if (name === 'trip' || name === 'jump') {
+    const { sim, p } = begin(c, 21, true);
+    put(sim, 100, p.x, p.z + 4.0, 2, 1.6);                       // 進路の前に、転んだ人（2 秒近く動かない）
+    let jumped = false, tripT = null, recoverT = null, minV = 99, jumps = 0, prevJumpT = 0;
+    for (let f = 0; f < 60 * 6; f++) {
+      const dz = sim.z[100] - p.z;
+      const jump = name === 'jump' && !jumped && dz < 2.3 && dz > 0.8;
+      if (jump) jumped = true;
+      drive(c, { axis: 0, dash: false, jump });
+      c.step(1 / 60);
+      sim.events.length = 0;
+      if (p.jumpT > 0 && prevJumpT <= 0) jumps += 1;
+      prevJumpT = p.jumpT;
+      minV = Math.min(minV, p.v);
+      if (p.fallT > 0 && tripT === null) tripT = sim.t;
+      if (tripT !== null && recoverT === null && p.fallT <= 0 && p.v > 3) recoverT = sim.t;
+    }
+    Object.assign(out, { tripped: tripT !== null, fallDuration: tripT !== null ? 1.2 : null, recoveredAfter: tripT !== null && recoverT !== null ? +(recoverT - tripT).toFixed(2) : null, jumps, passed: p.z > sim.z[100], falls: sim.falls, finalV: +p.v.toFixed(2), minV: +minV.toFixed(2) });
+  } else if (name === 'bump') {
+    const { sim, p } = begin(c, 22, true);
+    let bumps = 0, minV = 99, maxStagger = 0;
+    for (let f = 0; f < 60 * 3; f++) {
+      if (f === 0) put(sim, 100, p.x, p.z + 3.0, 1, 0.6);        // 進路に立ちふさがる（転びかけの状態を保つ。NPC はプレイヤーをよけるため）
+      else { sim.st[100] = 1; sim.tm[100] = 0.6; }
+      drive(c, { axis: 0, dash: false, jump: false }); c.step(1 / 60);
+      bumps = sim.bumps; if (f > 30) minV = Math.min(minV, p.v); maxStagger = Math.max(maxStagger, p.stagger); sim.events.length = 0;
+    }
+    Object.assign(out, { bumps, minV: +minV.toFixed(2), maxStagger: +maxStagger.toFixed(2), falls: sim.falls });
+  } else if (name === 'npc_states') {
+    const { sim } = begin(c, 23, true);
+    const seen = []; put(sim, 50, 5, 20, 1, 0.6);
+    let last = -1;
+    for (let f = 0; f < 60 * 4; f++) { drive(c, { axis: 0, dash: false, jump: false }); c.step(1 / 60); sim.events.length = 0; const s = sim.st[50]; if (s !== last) { seen.push(s); last = s; } }
+    const poses = {};
+    for (const [label, st, tm] of [['run', 0, 0], ['stumble', 1, 0.3], ['fallen', 2, 0.8], ['getup', 3, 0.25]]) { sim.st[50] = st; sim.tm[50] = tm; sim.vz[50] = 5; poses[label] = c.game.poseOf(50); }
+    Object.assign(out, { states: seen, poses });
+  } else if (name === 'chain') {
+    let others = 0, maxDown = 0, stuck = 0;
+    for (const seed of [31, 32, 33, 34, 35]) {
+      const { sim, p } = begin(c, seed, false);
+      const target = sim.M - 1 - 20 * 6 - 10;                       // 隊列の中ほどの 1 人を転ばせる
+      put(sim, target, sim.x[target], sim.z[target], 2, 1.6);
+      for (let f = 0; f < 60 * 12; f++) {
+        drive(c, { axis: 0, dash: false, jump: false }); c.step(1 / 60);
+        sim.events.length = 0;
+        let d = 0; for (let i = 0; i < sim.M; i++) if ((sim.st[i] === 1 || sim.st[i] === 2) && i !== target) d++;
+        others = Math.max(others, d); maxDown = Math.max(maxDown, d + 1);
+      }
+      for (let i = 0; i < sim.M; i++) if (sim.st[i] === 2 && sim.tm[i] > 1.7) stuck++;       // 転んだまま動かない人がいないか
+      void p;
+    }
+    Object.assign(out, { othersDownMax: others, maxDown, stuck });
+  } else if (name === 'overtake') {
+    const { sim, p } = begin(c, 41, false);
+    const state = { dash: true };
+    const start = sim.rank; let ov = 0, minRank = start, f = 0;
+    const ranks = [];
+    while (c.state === 'playing' && f < 60 * 80) {
+      drive(c, decide(c.game, state)); c.step(1 / 60); f++;
+      sim.events.length = 0;
+      minRank = Math.min(minRank, sim.rank);
+      if (f % 60 === 0) ranks.push(sim.rank);
+    }
+    Object.assign(out, { startRank: start, finalRank: sim.finalRank, overtakes: sim.overtakes, bestRank: minRank, ranksPerSecond: ranks, finished: sim.finished, time: +sim.finishTime.toFixed(2), runners: sim.runners });
+    void p;
+  }
+  return out;
+}
+
+// ---- 長時間動作（ソーク）：N レースを、描画つきで続けて走り、メモリなどの増え方を見る ----
+function soak(c, q) {
+  const N = Number(q.get('soak') || 20);
+  const rows = [];
+  const state = { dash: true };
+  let race = 0;
+  const heapNow = () => { if (window.gc) window.gc(); return performance.memory ? performance.memory.usedJSHeapSize / 1048576 : null; };
+  const heap0 = heapNow();
+  function one() {
+    c.start(200 + race); c.hold(true);
+    let f = 0; const t0 = performance.now();
+    (function loop() {
+      let k = 0;
+      while (c.state === 'playing' && k < 150) { drive(c, decide(c.game, state)); c.step(1 / 60); c.render(); k++; f++; }
+      if (c.state === 'playing') return void setTimeout(loop, 0);
+      const r = c.game.renderer.stats;
+      rows.push({ race, frames: f, seconds: +((performance.now() - t0) / 1000).toFixed(1), heap_mb: heapNow(), dom: document.getElementsByTagName('*').length, glError: c.gl.getError(), gpu_buffer_bytes: r.gpuBytes(), finalRank: c.game.sim.finalRank, finished: c.game.sim.finished });
+      race += 1;
+      if (race < N) setTimeout(one, 0); else done();
+    })();
+  }
+  function done() {
+    const hs = rows.map((r) => r.heap_mb).filter((v) => v !== null);
+    const tail = hs.slice(Math.floor(hs.length * 0.3));
+    let slope = 0;
+    if (tail.length > 3) { const n = tail.length, mx = (n - 1) / 2, my = tail.reduce((a, b) => a + b, 0) / n; let num = 0, den = 0; tail.forEach((y, i) => { num += (i - mx) * (y - my); den += (i - mx) ** 2; }); slope = num / den; }
+    out({ races: N, heap_start_mb: heap0, heap_end_mb: hs[hs.length - 1], heap_max_mb: Math.max(...hs), heap_slope_mb_per_race: +slope.toFixed(4), dom_first: rows[0].dom, dom_last: rows[rows.length - 1].dom, glErrors: rows.filter((r) => r.glError !== 0).length, gpu_buffer_constant: new Set(rows.map((r) => r.gpu_buffer_bytes)).size === 1, all_finished: rows.every((r) => r.finished), ranks: rows.map((r) => r.finalRank), rows });
+  }
+  one();
+}
+
 export function run(c) {
   const q = new URLSearchParams(location.search);
+  if (q.get('soak')) { soak(c, q); return null; }
+  if (q.get('scenario')) { out(runScenario(c, q.get('scenario'))); return null; }
   if (q.get('bench')) return bench(c, q);
   if (q.get('cpubench')) {
     // JS の CPU 時間（更新＋インスタンス構築＋描画命令の発行＋HUD）。GPU は含まない。回帰の検出用
@@ -206,6 +322,37 @@ export function run(c) {
   if (q.get('shot')) {
     const kind = q.get('shot'), seed = Number(q.get('seed') || 5), until = Number(q.get('t') || 10);
     if (kind === 'title') { out('ok'); return null; }
+    if (kind === 'poses2') {
+      // 姿勢の確認：他の人を遠ざけて、目の前に 走り・転びかけ・転倒・起き上がり を横に並べる
+      c.start(seed); c.hold(true);
+      const sim = c.game.sim, p = sim.player;
+      let g = 0; while (c.game.countdown > 0 && g++ < 1000) c.step(1 / 60);
+      for (let i = 0; i < sim.M; i++) { if (sim.st[i] !== 4) { sim.z[i] = p.z + 500; } }
+      const row = [[0, 0, -3.6], [1, 0.3, -1.8], [2, 1.0, 0], [2, 0.3, 1.8], [3, 0.2, 3.6]];
+      row.forEach(([st, tm, dx], k) => { sim.x[10 + k] = p.x + dx; sim.z[10 + k] = p.z + 6; sim.st[10 + k] = st; sim.tm[10 + k] = tm; sim.vz[10 + k] = 5; });
+      c.render();
+      out('ok');
+      return null;
+    }
+    if (kind === 'poses') {
+      // 見た目の確認：目の前の人を、転びかけ・転倒・起き上がり・ジャンプ中にして描く
+      c.start(seed); c.hold(true);
+      const sim = c.game.sim, p = sim.player;
+      let g = 0; while (c.game.countdown > 0 && g++ < 1000) c.step(1 / 60);
+      const state = { dash: true };
+      for (let f = 0; f < 60 * 4; f++) { drive(c, decide(c.game, state)); c.step(1 / 60); }
+      sim.events.length = 0;
+      const near = [];
+      for (let i = 0; i < sim.M; i++) { if (sim.st[i] === 4) continue; const dz = sim.z[i] - p.z; if (dz > 3 && dz < 12) near.push(i); }
+      near.sort((a, b) => Math.abs(sim.x[a] - p.x) - Math.abs(sim.x[b] - p.x));
+      const plan = [[1, 0.3], [2, 0.8], [2, 1.2], [3, 0.2], [1, 0.1], [2, 0.5]];
+      plan.forEach(([st, tm], k) => { if (near[k * 3] !== undefined) { sim.st[near[k * 3]] = st; sim.tm[near[k * 3]] = tm; } });
+      drive(c, { axis: 0, dash: false, jump: false });
+      c.step(1 / 600); sim.events.length = 0;
+      c.render();
+      out('ok');
+      return null;
+    }
     c.start(seed); c.hold(true);
     const state = { dash: true };
     let f = 0;

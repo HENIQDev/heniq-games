@@ -200,6 +200,48 @@ class BrowserTest(unittest.TestCase):
         self.assertLess(r["avg_ms"], 5, r)
         self.assertLess(r["p95_ms"], 12, r)
 
+    def scenario(self, name):
+        return self.result("crowd-sprint-3d/?scenario=%s" % name)
+
+    def test_crowd_sprint_3d_trip_recovery_and_jump(self):
+        """転倒と復帰・ジャンプ：転んだ人に突っ込むとつまずき（約 1.2 秒）、そのあと走りに戻る。ジャンプで飛び越えるとつまずかない。"""
+        a = self.scenario("trip")
+        self.assertTrue(a["tripped"] and a["falls"] == 1, a)
+        self.assertIsNotNone(a["recoveredAfter"], "つまずいたあと、走りに戻らない")
+        self.assertTrue(1.1 <= a["recoveredAfter"] <= 2.2, a)
+        self.assertGreaterEqual(a["finalV"], 5.0)
+        b = self.scenario("jump")
+        self.assertFalse(b["tripped"], b)
+        self.assertEqual((b["jumps"], b["falls"]), (1, 0))
+        self.assertTrue(b["passed"], "ジャンプで越えられていない")
+
+    def test_crowd_sprint_3d_bump_chain_and_npc_states(self):
+        """接触でよろける／転倒の連鎖が起きる（上限内）／NPC の状態が 転びかけ→転倒→起き上がり→走る と進み、固まらない／姿勢が状態ごとに違う。"""
+        bump = self.scenario("bump")
+        self.assertGreaterEqual(bump["bumps"], 1, bump)
+        self.assertLess(bump["minV"], 5.6)
+        self.assertEqual(bump["falls"], 0)
+        chain = self.scenario("chain")
+        self.assertGreaterEqual(chain["othersDownMax"], 1, "転倒の連鎖が起きない：%s" % chain)
+        self.assertLessEqual(chain["maxDown"], 46, "同時に転ぶ人の上限（45）を超えた")
+        self.assertEqual(chain["stuck"], 0, "転んだまま動かない人がいる")
+        st = self.scenario("npc_states")
+        self.assertEqual(st["states"], [1, 2, 3, 0], st)
+        po = st["poses"]
+        self.assertEqual(po["run"]["roll"], 0)
+        self.assertTrue(0 < abs(po["stumble"]["roll"]) < 0.5)
+        self.assertGreaterEqual(abs(po["fallen"]["roll"]), 1.4, "転倒が横倒れになっていない")
+        self.assertTrue(0.2 < abs(po["getup"]["roll"]) < 1.4)
+
+    def test_crowd_sprint_3d_overtaking_updates_real_rank(self):
+        """追い抜き：800 位から始まり、追い抜くたびに順位が上がる（実際の順位）。"""
+        r = self.scenario("overtake")
+        self.assertEqual((r["startRank"], r["runners"]), (800, 800))
+        self.assertTrue(r["finished"])
+        self.assertLess(r["finalRank"], 200)
+        self.assertGreater(r["overtakes"], 500)
+        self.assertLess(r["ranksPerSecond"][8], r["ranksPerSecond"][2], "順位が上がっていない")
+
     def test_store_renders(self):
         dom = self.dom("", (1280, 800))
         self.assertIn("HENIQ GAMES", dom)
