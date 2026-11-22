@@ -92,6 +92,14 @@
 - 止まっている理由：Cloudflare Pages のプロジェクト `heniq-games` が、まだ存在しない（`heniq-games.pages.dev` が名前解決できない）。作成はオーナーのアカウントでの操作。
 - 未確認：FPS・GPU 時間（未計測）、iPhone 実機（リリース後にオーナーが確認）。
 
+## 2026-11-22 CROWD SPRINT 3D 公開（テスト公開中）
+- **ゲーム**：https://heniq-games.pages.dev/crowd-sprint-3d/ （ストア https://heniq-games.pages.dev/ ・詳細 …/crowd-sprint-3d/about/ ・プライバシー …/privacy/）。Cloudflare Pages `heniq-games`（GitHub `HENIQDev/heniq-games` の `main` から自動デプロイ。ビルド：`python3 tools/build.py --release`）。公開日 2026-11-22。コミット `2aaeaa9`（リリース）・`240bfab`（画像のメタデータ除去）・`90312e0`（404 ページ）。
+- **公式 HP**：https://heniq-website.pages.dev/games/ に「テスト公開中（プレイできます）」として掲載（HP のコミット `bb746e5`。`cms` ブランチの作業ツリー・未コミット 3 ファイルは、別クローンで作業し、触れていない）。プライバシーポリシーに項を追加（最終改定日 2026-11-22）。
+- **公開後の確認（公開 URL・実ブラウザ）**：ゲームの起動（WebGL2）／実際のキー（← → Shift Space）とマルチタッチ（なぞる＋DASH＋JUMP）の操作／3D の描画（描画コール 6・全員が 3D）／音声（AudioContext が動作・ミュート切替。**聞こえ方そのものは未確認**）／完走（結果画面）／詳細ページと画像（スマホ 375・PC 1280。はみ出しなし）／プライバシーページ／HP の `/games/` から「今すぐプレイ」で遷移して遊べること。JS のエラーなし。
+- **公開して分かったこと**：Cloudflare Pages は `404.html` が無いと、存在しない URL にも 200 でトップを返す（公開していないゲームの URL も 200 になる）。404 ページを追加して push したが、確認した時点（約 25 分後）では**まだ反映されていない**（Pages のデプロイ状況をダッシュボードで確認する必要がある。機能への影響はない）。
+- **未確認**：FPS・GPU 時間（未計測）、iPhone 実機（FPS・発熱・入力遅延・手触り。リリース後にオーナーが確認）、実際のスピーカーでの音。
+- 検索エンジンには載せていない（`indexing: false`・noindex）。
+
 ## 次回の再開地点
 00. BALL DODGE・CROWD SPRINT は完成（承認待ち：CROWD SPRINT の commit・手触りの確認・実機確認・公開）。次の候補：3 本目（巨大鳩）／HP 連携（H1）／公開の準備。旧メモ→（設計メモ `games/crowd-sprint/docs/SPEC.md` 11 章の 5 項目は未回答。推奨案で進めてよいか確認する。参考 2 本は調査済み・実プレイ不可）。HP 連携（H1）は別作業。
 0. M2：設計メモの 11 章（5 項目）の承認 → M2-a（マルチタッチ入力 → ベンチマーク版で iPhone 実機 60fps の確認 → 本体）。
