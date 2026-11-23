@@ -124,9 +124,8 @@ export class RoomCore {
       this.closeAt = this.o.now() + 4000;
     };
     this.closeAt = this.o.now() + 8000;
-    if (isVoid) return done(null);
     try {
-      const r = this.o.onResult({ matchId: this.id, pids: [this.players[0].pid, this.players[1].pid], winner, reason, duration });
+      const r = this.o.onResult({ matchId: this.id, pids: [this.players[0].pid, this.players[1].pid], winner, reason, duration, void: !!isVoid });
       if (r && typeof r.then === 'function') r.then(done, () => done(null)); else done(r);   // 結果の保存に失敗しても、試合の終了は伝える
     } catch (e) { done(null); }
   }
@@ -213,6 +212,7 @@ export class LobbyCore {
   find(c, m) {
     if (!validChar(m.char)) return this.o.send(c.cid, { t: 'error', code: 'bad_char' });
     const now = this.o.now();
+    if (c.state === 'matched' && now - (c.matchedAt || 0) < 150000) return this.o.send(c.cid, { t: 'error', code: 'in_match' });       // 対戦中の二重マッチングを防ぐ（結果が出ると解除される）
     if (this.queue.some((q) => q.cid === c.cid)) return;
     if (now - (this.lastFind.get(c.pid) || 0) < 800) return;
     this.lastFind.set(c.pid, now);
@@ -270,8 +270,17 @@ export class LobbyCore {
     this.o.send(c.cid, { t: 'ranking', list, me: me ? { ...publicStats(me), rank: this.store.rankOf(me) } : null, total: this.store.count() });
   }
   // 試合の結果：サーバーの部屋だけが呼べる（クライアントからは届かない）
+  // 試合が終わった（結果あり・無効のどちらも）：対戦中の印を外し、次のマッチングを受け付ける
+  release(pids) {
+    for (const pid of pids || []) {
+      const cid = this.byPid.get(pid), c = cid && this.conns.get(cid);
+      if (c && c.state === 'matched') { c.state = 'ready'; this.save(cid); }
+    }
+  }
   recordResult(r) {
     const empty = { deltas: [0, 0], ratings: [0, 0], stats: [null, null] };
+    this.release(r.pids);
+    if (r.void) return { deltas: [0, 0], ratings: r.pids.map((pid) => (this.store.get(pid) || { rating: 0 }).rating), stats: [null, null] };
     if (this.store.hasResult(r.matchId)) return empty;
     this.store.addResult(r.matchId);
     const [pa, pb] = r.pids.map((pid) => this.store.get(pid));

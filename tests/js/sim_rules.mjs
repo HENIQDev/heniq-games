@@ -31,6 +31,17 @@ const idle = () => S.emptyInput();
   S.step(s3, idle(), idle());
   ok('時間切れ：勢いが少ない方の勝ち', s3.winner === 1 && s3.reason === 'time', JSON.stringify([s3.winner, s3.phase]));
 }
+// 2b 土俵の境界：ふちの内側は場外にならず、外側は場外になる（境界の判定）
+{
+  const mk = (r) => { const s = S.createMatch({ chars: ['ojisan', 'ojisan'], seed: 9 }); s.phase = 'fight'; s.f[0].x = 0; s.f[0].y = r; s.f[1].x = 0; s.f[1].y = -1; return s; };
+  const R0 = S.RING_R, r0 = CHAR_BY_ID.ojisan.r;
+  let s = mk(R0 + r0 * 0.15 - 0.05); S.step(s, idle(), idle()); ok('ふちの内側（半径 − 0.05 m）は場外にならない', !s.f[0].out);
+  s = mk(R0 + r0 * 0.15 + 0.05); S.step(s, idle(), idle()); ok('ふちの外側（半径 + 0.05 m）は場外になる', !!s.f[0].out && s.phase === 'ko' && s.winner === 1);
+  s = mk(R0 - 0.5); s.shrinking = true; s.t = 50; S.step(s, idle(), idle()); ok('土俵が狭くなると、境界も狭くなる（半径 4.5 は場外）', !!s.f[0].out);
+  s = mk(1.0); s.f[1].y = -R0 - 1; S.step(s, idle(), idle()); ok('相手が外に出れば自分の勝ち', s.winner === 0);
+  const t2 = S.createMatch({ chars: ['ojisan', 'ojisan'], seed: 9 }); t2.phase = 'fight'; t2.f[0].y = R0 + 2; t2.f[1].y = -R0 - 2; S.step(t2, idle(), idle());
+  ok('同時に場外なら、中心に近い方が勝ち（引き分けにならない）', t2.over || t2.phase === 'ko');
+}
 // 3 土俵が狭くなる
 {
   const s = S.createMatch({ chars: ['ojisan', 'ojisan'], seed: 4 });
@@ -60,6 +71,23 @@ const idle = () => S.emptyInput();
   let dashes = 0; const spam = { mx: 0, my: -1, b: 1 };
   for (let i = 0; i < 200; i++) { S.step(s, spam, idle()); dashes += s.events.filter((e) => e.t === 'dash' && e.i === 0).length; if (s.over) break; }
   ok('突進の連打は制限される（4 秒で 4 回以下）', dashes >= 1 && dashes <= 4, 'dashes=' + dashes + ' t=' + s.t);
+}
+// 5b 先行入力：突進中に押した必殺・クールダウン中に押した突進を、取りこぼさない
+{
+  const s = S.createMatch({ chars: ['ojisan', 'ojisan'], seed: 5 }); s.phase = 'fight';
+  s.f[0].gau = 100; s.f[0].x = 0; s.f[0].y = 3.6; s.f[1].x = 3; s.f[1].y = -3;
+  S.step(s, { mx: 0, my: -1, b: 1 }, idle());                        // 突進
+  for (let i = 0; i < 7; i++) S.step(s, idle(), idle());
+  S.step(s, { mx: 0, my: -1, b: 8 }, idle());                        // 突進が終わる少し前に必殺を押す（このときは出せない）
+  let used = false; for (let i = 0; i < 12; i++) { S.step(s, idle(), idle()); if (s.events.some((e) => e.t === 'special' && e.i === 0)) used = true; }
+  ok('突進中に押した必殺は、突進が終わってから出る（0.2 秒の先行入力）', used);
+  const s2 = S.createMatch({ chars: ['ojisan', 'ojisan'], seed: 5 }); s2.phase = 'fight'; s2.f[0].dashCd = 0.1; s2.f[0].x = 0; s2.f[0].y = 3.6; s2.f[1].x = 3; s2.f[1].y = -3;
+  S.step(s2, { mx: 0, my: -1, b: 1 }, idle());
+  let dashed = false; for (let i = 0; i < 6; i++) { S.step(s2, idle(), idle()); if (s2.events.some((e) => e.t === 'dash')) dashed = true; }
+  ok('クールダウンが終わる直前に押した突進は、終わった瞬間に出る', dashed);
+  const s3 = S.createMatch({ chars: ['ojisan', 'ojisan'], seed: 5 }); s3.phase = 'fight'; s3.f[0].dashCd = 2; s3.f[1].x = 3; s3.f[1].y = -3;
+  S.step(s3, { mx: 0, my: -1, b: 1 }, idle()); let late = false; for (let i = 0; i < 90; i++) { S.step(s3, idle(), idle()); if (s3.events.some((e) => e.t === 'dash')) late = true; }
+  ok('0.2 秒より前に押した突進は、あとから勝手に出ない', !late);
 }
 // 6 踏ん張り：ジャスト（押した直後 0.3 秒以内の被弾）は弾き返す
 {

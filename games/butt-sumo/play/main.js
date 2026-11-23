@@ -36,6 +36,13 @@ audio.setMuted(save.settings.mute || audio.muted);
 const sfx = createSfx(audio, () => save.settings);
 const input = createInput(app);
 const gfx = createGfx(canvas);
+const reducedMotion = !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+if (gfx) gfx.opts.shake = () => save.settings.shake !== false && !reducedMotion;      // 設定「画面のゆれ」と OS の「視差効果を減らす」に従う
+// iPhone の Safari：ピンチ拡大・ダブルタップ拡大・長押しメニューを止める（user-scalable=no は iOS では効かない）
+for (const ev of ['gesturestart', 'gesturechange', 'gestureend']) document.addEventListener(ev, (e) => e.preventDefault());
+document.addEventListener('contextmenu', (e) => { if (!(e.target && e.target.closest && e.target.closest('input,textarea'))) e.preventDefault(); });
+let lastTouchEnd = 0;
+document.addEventListener('touchend', (e) => { const n = Date.now(); if (n - lastTouchEnd < 350 && !(e.target.closest && e.target.closest('input,textarea'))) e.preventDefault(); lastTouchEnd = n; }, { passive: false });
 
 const G = {
   save, audio, sfx, input, gfx, net: null,
@@ -104,6 +111,8 @@ const wantTouch = () => save.settings.touch === 'on' || (save.settings.touch ===
 // ---- CP 戦 ----
 G.startCp = (n, opt = {}) => {
   destroyBattle();
+  // まだ解放されていないステージには入れない（画面の操作・コンソールのどちらからでも。検証用の ?debug=1 のときだけ例外）
+  if (!/[?&]debug=1/.test(location.search)) n = Math.max(1, Math.min(n, save.cleared + 1, STAGE_COUNT));
   const st = opt.theme || opt.foe ? { ...STAGES[n - 1], theme: opt.theme || STAGES[n - 1].theme, foe: opt.foe || STAGES[n - 1].foe } : STAGES[n - 1];
   const open = unlockedChars(save.cleared);
   const mine = opt.me || (open.includes(save.char) ? save.char : 'ojisan');
@@ -120,12 +129,14 @@ G.startCp = (n, opt = {}) => {
 function pauseBattle() {
   if (!G.battle || G.screen !== 'battle' || G.battle.paused) return;
   G.battle.setPaused(true);
+  sfx.stopBgm();
   G.screen = 'pause';
   uiLayer.replaceChildren(S.pause({ resume: resumeBattle, retry: () => G.startCp(G.battleNum), quit: () => G.go('stages', { stage: G.battleNum }) }));
 }
 function resumeBattle() {
   if (!G.battle) return;
   G.battle.setPaused(false); G.screen = 'battle'; uiLayer.replaceChildren();
+  sfx.bgm(G.stage && G.stage.boss ? 'boss' : 'battle', 1 + (G.battleNum || 1) / 500);
 }
 input.onPause(() => { if (G.screen === 'battle' && G.battle && G.battle.hudPauseButton.style.display !== 'none') pauseBattle(); else if (G.screen === 'pause') resumeBattle(); });
 document.addEventListener('visibilitychange', () => { if (document.hidden && G.screen === 'battle' && G.battle && G.battle.hudPauseButton.style.display !== 'none') pauseBattle(); });
@@ -261,18 +272,23 @@ function onlineEnded(r, start) {
 let last = performance.now(), fpsAcc = 0;
 function frame(now) {
   const dt = Math.min((now - last) / 1000, 0.1); last = now; time += dt;
-  if (G.battle) { G.battle.update(dt); G.battle.render(dt, time); }
+  if (G.unlockPreview) {
+    // キャラクター解放の演出：新しいキャラクターの 3D を、はね回らせて見せる（直前の試合の画面は、後ろで止まったまま）
+    G.sceneKind = 'preview';
+    gfx.render({ preview: { id: G.unlockPreview, yaw: Math.sin(time * 0.7) * 0.9 + 0.4, pose: 'win', look: 0.2 }, mode: 'menu', dt, time, flip: false, lift: 1 });
+  } else if (G.battle) { G.sceneKind = 'battle'; G.battle.update(dt); G.battle.render(dt, time); }
   else {
     const sc = G.scene;
     const lift = G.screen === 'chars' || G.screen === 'stages' ? 1 : 0;      // 縦向きでは、下のパネルに隠れないよう 3D を上へ寄せる
-    if (sc.type === 'preview' || G.unlockPreview) gfx.render({ preview: { id: G.unlockPreview || sc.id, yaw: Math.sin(time * 0.7) * 0.9 + 0.4, pose: G.unlockPreview ? 'win' : 'idle', look: 0.2 }, mode: 'menu', dt, time, flip: false, lift: lift });
-    else if (sc.view) gfx.render({ view: sc.view, mode: 'menu', dt, time, flip: false, lift: lift });
+    if (sc.type === 'preview') { G.sceneKind = 'preview'; gfx.render({ preview: { id: sc.id, yaw: Math.sin(time * 0.7) * 0.9 + 0.4, pose: 'idle', look: 0.2 }, mode: 'menu', dt, time, flip: false, lift: lift }); }
+    else if (sc.view) { G.sceneKind = 'demo'; gfx.render({ view: sc.view, mode: 'menu', dt, time, flip: false, lift: lift }); }
   }
   gfx.adapt(dt * 1000);
   requestAnimationFrame(frame);
 }
 function onResize() { gfx.resize(); }
 window.addEventListener('resize', onResize);
+if (window.visualViewport) window.visualViewport.addEventListener('resize', onResize);          // アドレスバーの表示・非表示で、画面の高さが変わったとき
 window.addEventListener('orientationchange', () => setTimeout(onResize, 200));
 onResize();
 requestAnimationFrame(frame);

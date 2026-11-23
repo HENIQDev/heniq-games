@@ -160,7 +160,7 @@ export function createBattle(ctx) {
     },
     render(dt, now) {
       if (!view) return;
-      gfx.render({ view, dt: paused ? 0 : dt, time: now, flip, cheer: 0, zoom: api.zoom, shift: api.shift });
+      gfx.render({ view, dt: paused ? 0 : dt, time: now, flip, cheer: 0, zoom: api.zoom, shift: api.shift, touch: input.touchAttached });
     },
     // オンライン：サーバーからの状態
     onSnap(m, at) {

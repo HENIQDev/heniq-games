@@ -34,7 +34,7 @@ function makeFighter(c, x, y, ang, buff) {
     dashT: 0, dashDur: 0, dashDx: 0, dashDy: 0, dashSpd: 0, dashPow: 1, dashHit: 0, dashCd: 0,
     chargeT: 0, brace: 0, braceT: 0, braceCd: 0, stunT: 0,
     specT: 0, specDur: 0, specKind: '', specStage: 0, exhaust: 0, invuln: 0, air: 0, massMul: 1, defMul: 1, spin: 0, slide: 0,
-    atk: buff.atk || 1, def: buff.def || 1, spd: buff.spd || 1, big: buff.big || 1, hits: 0, taken: 0, flash: 0,
+    atk: buff.atk || 1, def: buff.def || 1, spd: buff.spd || 1, big: buff.big || 1, hits: 0, taken: 0, flash: 0, bufDash: 0, bufSpecial: 0,
   };
 }
 
@@ -86,6 +86,7 @@ function launchDash(s, i, pow, dur, speedMul, dir, cost) {
   push(s, { t: 'dash', i, p: Math.min(1, pow / 2) });
 }
 
+export const INPUT_BUFFER = 0.2;                // 突進・必殺は、押してから 0.2 秒以内に使える状態になれば出る（突進中・スタン中・クールダウン中の押し込みを取りこぼさない）
 const SPEC_LOCK = { quake: 1, cry: 1, pull: 1, hop: 1 };
 
 function startSpecial(s, i, inp) {
@@ -185,6 +186,9 @@ function stepFighter(s, i, inpRaw) {
   const locked = f.specT > 0 && SPEC_LOCK[f.specKind];
   const canAct = fighting && f.stunT <= 0 && !locked && !f.out;
   const dashing = f.dashT > 0;
+  // 先行入力：押した瞬間を少しの間だけ覚えておく
+  f.bufDash = Math.max(0, f.bufDash - DT); f.bufSpecial = Math.max(0, f.bufSpecial - DT);
+  if (fighting) { if (inp.b & BTN.DASH) f.bufDash = INPUT_BUFFER; if (inp.b & BTN.SPECIAL) f.bufSpecial = INPUT_BUFFER; }
 
   if (canAct && !dashing) {
     // 踏ん張り
@@ -205,10 +209,10 @@ function stepFighter(s, i, inpRaw) {
       f.chargeT = 0;
     }
     // 突進
-    if ((inp.b & BTN.DASH) && f.dashCd <= 0 && f.sta >= 18 && f.exhaust <= 0 && f.chargeT <= 0 && !f.brace) {
-      launchDash(s, i, 1, 0.32, 1, aimDir(s, i, inp), 22);
-    } else if ((inp.b & BTN.SPECIAL) && f.gau >= 100 && f.specT <= 0 && f.chargeT <= 0) {
-      startSpecial(s, i, inp);
+    if (f.bufDash > 0 && f.dashCd <= 0 && f.sta >= 18 && f.exhaust <= 0 && f.chargeT <= 0 && !f.brace) {
+      f.bufDash = 0; launchDash(s, i, 1, 0.32, 1, aimDir(s, i, inp), 22);
+    } else if (f.bufSpecial > 0 && f.gau >= 100 && f.specT <= 0 && f.chargeT <= 0) {
+      f.bufSpecial = 0; startSpecial(s, i, inp);
     }
   } else if (!canAct) {
     f.brace = 0; f.chargeT = 0;

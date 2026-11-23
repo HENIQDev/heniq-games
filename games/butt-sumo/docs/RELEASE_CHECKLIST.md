@@ -20,3 +20,16 @@
 - [ ] 人間の実プレイでのバランス・難易度の調整（`BALANCE_TEST.md`）。
 - [ ] 音の聞こえ方の確認（合成音。ヘッドレスでは聞けていない）。
 - [ ] `release_date`・`status: published`・`indexing`（現在は false のまま）。
+
+
+## 品質監査（2026-11-23）後の、公開までの残作業（優先順位つき）
+**P0（公開の前提）**
+1. 人間の実プレイ（5〜10 人 × 各 10 試合）：操作感・キャラの勝ちやすさ・CP の難しさ（特に 21〜40 とボス）・面白さ。結果で、`BALANCE_TEST.md` の調整を行う。
+2. iPhone Safari・Android Chrome の実機確認（タッチ、画面の回転・アドレスバー、FPS・発熱、音）。
+3. オンライン：Cloudflare へのデプロイ（承認事項。Node/wrangler の導入、または画面操作）→ `config.js`・`game.json` の更新 → 本番で 2 台の端末から対戦 → 無料枠の実測（`ONLINE_DESIGN.md` の 7）。
+**P1（公開前に判断）**
+4. 仕様判断：スタミナの影響が小さい／必殺技の比重が大きい／重量級の飛ばされにくさ（`BALANCE_TEST.md` の 5.1）。変更する場合は、キャラの再調整が必要。
+5. Safari・Firefox・Edge での確認。音の聞こえ方の確認。
+6. プライバシーページの最終確認（`catalog/site.json` の `privacy_finalized`）。`release_date`・`status: published`・`indexing` の判断。
+**P2（公開後でもよい）**
+7. 不適切なニックネームのフィルター、Lobby の分割（接続が多くなったとき）、メニューのゲームパッド操作、キャラの解放状況のサーバー検証（現在は性能が同じなので不要）。

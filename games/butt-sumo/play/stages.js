@@ -21,16 +21,16 @@ const TIERS = [
 ];
 
 export const BOSSES = {
-  10: { name: 'ドスコイ番長', char: 'gorilla', style: '押しの一手', tactics: ['rush', 'chase', 'charge'], aggr: 0.8, brace: 0.2, big: 1.0 },
-  20: { name: 'チキン将軍', char: 'chicken', style: 'ひき逃げ', tactics: ['kite', 'chase', 'counter', 'feint', 'special'], aggr: 0.7, brace: 0.3, big: 1.05 },
+  10: { name: 'ドスコイ番長', char: 'gorilla', style: '押しの一手', tactics: ['rush', 'chase', 'charge'], aggr: 0.8, brace: 0.2, big: 1.0, mul: { atk: 1.18, def: 1.1 } },
+  20: { name: 'チキン将軍', char: 'chicken', style: 'ひき逃げ', tactics: ['kite', 'chase', 'counter', 'feint', 'special'], aggr: 0.7, brace: 0.3, big: 1.05, mul: { atk: 1.15, def: 1.12 } },
   30: { name: '鉄壁ロボ・ガード', char: 'robot', style: 'カウンター', tactics: ['brace', 'counter', 'chase', 'special'], aggr: 0.5, brace: 0.7, big: 1.0 },
-  40: { name: 'プリン姫', char: 'pudding', style: '滑って回り込む', tactics: ['edge', 'feint', 'chase', 'special'], aggr: 0.65, brace: 0.4, big: 1.0 },
+  40: { name: 'プリン姫', char: 'pudding', style: '滑って回り込む', tactics: ['edge', 'feint', 'chase', 'special'], aggr: 0.65, brace: 0.4, big: 1.0, mul: { atk: 1.3, def: 1.25, spd: 1.08 } },
   50: { name: 'ハンバーガー大王', char: 'burger', style: '回転ラッシュ', tactics: ['rush', 'chase', 'special', 'charge'], aggr: 0.85, brace: 0.3, big: 1.1 },
-  60: { name: 'ゲコ仙人', char: 'frog', style: '引き寄せと外押し', tactics: ['edge', 'feint', 'counter', 'brace', 'special'], aggr: 0.6, brace: 0.6, big: 1.1 },
+  60: { name: 'ゲコ仙人', char: 'frog', style: '引き寄せと外押し', tactics: ['edge', 'feint', 'counter', 'brace', 'special'], aggr: 0.6, brace: 0.6, big: 1.1, mul: { atk: 0.82, def: 0.95 } },
   70: { name: 'ビッグ・ベビー', char: 'baby', style: '重量と大泣き', tactics: ['chase', 'charge', 'special', 'brace'], aggr: 0.7, brace: 0.5, big: 1.0 },
   80: { name: '大将寿司', char: 'sushi', style: '高速フェイント', tactics: ['feint', 'edge', 'counter', 'chase', 'special', 'brace'], aggr: 0.8, brace: 0.55, big: 1.25 },
   90: { name: 'ナゾ博士', char: 'mystery', style: '全部入り', tactics: ['chase', 'brace', 'counter', 'feint', 'edge', 'charge', 'special'], aggr: 0.8, brace: 0.7, big: 1.0 },
-  100: { name: '大横綱 ミスター・ケツ', char: 'ojisan', style: 'すべての戦術', tactics: ['chase', 'brace', 'counter', 'feint', 'edge', 'charge', 'special'], aggr: 0.85, brace: 0.7, big: 1.2 },
+  100: { name: '大横綱 ミスター・ケツ', char: 'ojisan', style: 'すべての戦術', tactics: ['chase', 'brace', 'counter', 'feint', 'edge', 'charge', 'special'], aggr: 0.85, brace: 0.7, big: 1.2, mul: { atk: 0.85, def: 0.9 } },
 };
 
 const FOE_ORDER = ['ojisan', 'chicken', 'frog', 'burger', 'pudding', 'sushi', 'robot', 'gorilla', 'baby', 'mystery'];
@@ -52,7 +52,8 @@ export function stageInfo(n) {
     edge: lerp(0.1, 0.8, Math.pow(t, 0.8)),
     tactics: boss ? boss.tactics : tier.tactics,
   };
-  const buff = { atk: lerp(0.85, 1.08, Math.pow(t, 0.9)), def: lerp(0.9, 1.1, Math.pow(t, 0.9)), spd: lerp(0.92, 1.05, t), big: boss ? boss.big : 1 };
+  const m = (boss && boss.mul) || {};
+  const buff = { atk: lerp(0.85, 1.08, Math.pow(t, 0.9)) * (m.atk || 1), def: lerp(0.9, 1.1, Math.pow(t, 0.9)) * (m.def || 1), spd: lerp(0.92, 1.05, t) * (m.spd || 1), big: boss ? boss.big : 1 };
   const mods = {
     ringR: 5.0 + (n % 10 === 3 ? -0.4 : 0) + (n % 10 === 7 ? 0.4 : 0),
     slip: theme === 'ice' ? 0.6 : theme === 'bath' ? 0.8 : 1,

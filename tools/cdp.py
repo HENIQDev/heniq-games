@@ -21,8 +21,8 @@ import time
 import urllib.request
 
 CHROME = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
-KEYCODES = {"ArrowLeft": 37, "ArrowUp": 38, "ArrowRight": 39, "ArrowDown": 40, "Space": 32, "ShiftLeft": 16, "Enter": 13, "Escape": 27, "KeyM": 77, "KeyP": 80}
-KEYNAMES = {"Space": " ", "ShiftLeft": "Shift", "KeyM": "m", "KeyP": "p"}
+KEYCODES = {"KeyW": 87, "KeyA": 65, "KeyS": 83, "KeyD": 68, "KeyJ": 74, "KeyK": 75, "KeyL": 76, "KeyZ": 90, "KeyX": 88, "KeyU": 85, "KeyC": 67, "KeyE": 69, "ShiftRight": 16, "ArrowLeft": 37, "ArrowUp": 38, "ArrowRight": 39, "ArrowDown": 40, "Space": 32, "ShiftLeft": 16, "Enter": 13, "Escape": 27, "KeyM": 77, "KeyP": 80}
+KEYNAMES = {"Space": " ", "ShiftLeft": "Shift", "ShiftRight": "Shift", "KeyM": "m", "KeyP": "p", "KeyW": "w", "KeyA": "a", "KeyS": "s", "KeyD": "d", "KeyJ": "j", "KeyK": "k", "KeyL": "l", "KeyZ": "z", "KeyX": "x", "KeyU": "u", "KeyC": "c", "KeyE": "e"}
 
 
 class WS:
@@ -141,8 +141,8 @@ class Browser:
         return None
 
     # ---- 実際の入力イベント ----
-    def key_down(self, code):
-        self.ws.call("Input.dispatchKeyEvent", {"type": "keyDown", "code": code, "key": KEYNAMES.get(code, code), "windowsVirtualKeyCode": KEYCODES.get(code, 0), "text": " " if code == "Space" else ""})
+    def key_down(self, code, repeat=False):
+        self.ws.call("Input.dispatchKeyEvent", {"type": "keyDown", "code": code, "key": KEYNAMES.get(code, code), "windowsVirtualKeyCode": KEYCODES.get(code, 0), "text": " " if code == "Space" else "", "autoRepeat": bool(repeat)})
 
     def key_up(self, code):
         self.ws.call("Input.dispatchKeyEvent", {"type": "keyUp", "code": code, "key": KEYNAMES.get(code, code), "windowsVirtualKeyCode": KEYCODES.get(code, 0)})

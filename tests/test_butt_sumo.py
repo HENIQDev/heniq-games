@@ -62,6 +62,16 @@ class Logic(unittest.TestCase):
         self.assertEqual(v["fail"], [], v["fail"])
         self.assertGreaterEqual(v["pass"], 12)
 
+    def test_character_identity_and_metrics(self):
+        """キャラクターの個性が、実測の数値（最高速度・飛ばされにくさ・旋回・滑り・必殺技の使用など）に出ている"""
+        v = self.run_js("char_report.mjs")
+        self.assertEqual(v["fail"], [], v["fail"])
+
+    def test_stage_bands_difficulty_and_ai_variety(self):
+        """全 100 ステージを戦い、10 ステージごとの帯で：序盤は勝てる・終盤は難しい・壁がない・AI の行動が変わる・ボスの個性"""
+        v = self.run_js("stage_report.mjs")
+        self.assertEqual(v["fail"], [], v["fail"])
+
     def test_balance_bounds(self):
         """全キャラ総当たり（AI 同士）：極端な偏りがない（勝率 30〜70%）。時間は 5〜40 秒"""
         v = self.run_js("balance.mjs")

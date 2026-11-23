@@ -187,13 +187,20 @@ export function createGfx(canvas) {
     let tx = 0, tz = 0, ext = st.R0 + 0.5;
     if (view && scene.mode !== 'menu') {
       const [ax, az] = toWorld(view.f[0].x, view.f[0].y, scene.flip), [bx, bz] = toWorld(view.f[1].x, view.f[1].y, scene.flip);
-      tx = (ax + bx) / 2 * 0.35; tz = (az + bz) / 2 * 0.35;
+      const fall = (f) => (f.out ? 1 : 0);
+      // 2 人が近いときは寄り（キャラが大きく見える）、離れているとき・ふちにいるときは、土俵全体が入る距離まで引く
+      const spread = Math.hypot(ax - bx, az - bz);
+      const edge = Math.max(Math.hypot(view.f[0].x, view.f[0].y), Math.hypot(view.f[1].x, view.f[1].y));
+      ext = clamp(Math.max(spread * 0.5 + 3.3, edge * 0.8 + 1.5), 4.6, st.R0 + 0.5);
+      if (fall(view.f[0]) || fall(view.f[1])) ext = st.R0 + 0.5;
+      tx = (ax + bx) / 2 * 0.6; tz = (az + bz) / 2 * 0.6;
       if (view.phase === 'ko' || view.phase === 'over') {
         const wi = view.winner >= 0 ? view.winner : 0;
         const [wx, wz] = toWorld(view.f[wi].x, view.f[wi].y, scene.flip);
-        tx = lerp(tx, wx, 0.55); tz = lerp(tz, wz, 0.55); ext *= 0.78;
+        tx = lerp(tx, wx, 0.55); tz = lerp(tz, wz, 0.55); ext = Math.max(4.6, ext * 0.85);
       }
     }
+    if (scene.touch && !portrait) ext *= 1.18;              // 横向きのタッチ操作：左右のスティック・ボタンの内側に、土俵が収まるように
     if (scene.preview) ext = portrait ? 4.2 : 3.2;
     const dH = ext / (Math.tan(fovy / 2) * asp);
     const dV = scene.preview ? (ext * 0.55 + 0.6) / Math.tan(fovy / 2) : (ext * Math.sin(pitch) + 2.3) / Math.tan(fovy / 2);
@@ -202,8 +209,10 @@ export function createGfx(canvas) {
     if (!c.ready) { c.tx = tx; c.tz = tz; c.d = d; c.ready = true; }
     const k = 1 - Math.exp(-dt * 3.5);
     c.tx += (tx - c.tx) * k; c.tz += (tz - c.tz) * k; c.d += (d - c.d) * k;
-    const sh = st.shake;
-    const jx = (Math.random() - 0.5) * sh * 0.5, jy = (Math.random() - 0.5) * sh * 0.5;
+    // 画面のゆれ：設定でオフにできる（prefers-reduced-motion のときも、オフ）。ランダムではなく滑らかな揺れで、最大でも約 0.2 m
+    const sh = st.shake * (api.opts.shake() ? 1 : 0);
+    const tm = scene.time || 0;
+    const jx = Math.sin(tm * 57) * sh * 0.2, jy = Math.sin(tm * 71 + 1.3) * sh * 0.2;
     const ty = (scene.preview ? 1.0 : 0.5) - (portrait && scene.lift ? (scene.preview ? 6.0 : 3.2) : 0);
     const eye = [c.tx + jx, Math.sin(pitch) * c.d + ty + jy, c.tz + Math.cos(pitch) * c.d];
     const target = [c.tx, ty, c.tz];
@@ -510,6 +519,7 @@ export function createGfx(canvas) {
   st.scale = st.maxScale;
   resize();
   const api = {
+    opts: { shake: () => true },
     gl, canvas, st, setTheme, resize, render, consume, adapt, project, toWorld,
     get lost() { return gl.isContextLost(); },
     shake(v) { st.shake = Math.max(st.shake, v); },

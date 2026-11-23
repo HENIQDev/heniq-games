@@ -36,16 +36,25 @@ def frame(op, data=b""):
 
 
 class Hub:
-    def __init__(self):
+    def __init__(self, delay_ms=0):
+        self.delay = delay_ms / 1000.0        # 通信遅延の再現（片道。クライアント⇄サーバーの両方向に付く）
         self.next = 1
         self.clients = {}
         self.server = None
         self.pending = []   # サーバー役が来る前のメッセージ
 
+    def later(self, fn):
+        """順序を保ったまま、遅延をつけて実行する"""
+        if self.delay <= 0:
+            fn()
+        else:
+            asyncio.get_event_loop().call_later(self.delay, fn)
+
     async def to_server(self, obj):
         if self.server:
-            self.server["w"].write(frame(1, json.dumps(obj).encode()))
-            await self.server["w"].drain()
+            w = self.server["w"]
+            data = frame(1, json.dumps(obj).encode())
+            self.later(lambda: w.write(data))
         else:
             self.pending.append(obj)
 
@@ -103,16 +112,17 @@ class Hub:
                 if not cw:
                     continue
                 if m["k"] == "send":
-                    cw.write(frame(1, m["d"].encode())); await cw.drain()
+                    data = frame(1, m["d"].encode())
+                    self.later(lambda cw=cw, data=data: cw.write(data))
                 elif m["k"] == "close":
-                    cw.write(frame(8)); await cw.drain(); cw.close()
+                    self.later(lambda cw=cw: (cw.write(frame(8)), cw.close()))
         except Exception:
             pass
         self.server = None
 
 
-async def main(port):
-    hub = Hub()
+async def main(port, delay_ms=0):
+    hub = Hub(delay_ms)
     srv = await asyncio.start_server(hub.handle, "127.0.0.1", port)
     print("dev hub: ws://127.0.0.1:%d" % port, flush=True)
     async with srv:
@@ -120,4 +130,4 @@ async def main(port):
 
 
 if __name__ == "__main__":
-    asyncio.run(main(int(sys.argv[1]) if len(sys.argv) > 1 else 8791))
+    asyncio.run(main(int(sys.argv[1]) if len(sys.argv) > 1 else 8791, int(sys.argv[2]) if len(sys.argv) > 2 else 0))

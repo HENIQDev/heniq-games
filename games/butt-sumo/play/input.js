@@ -20,8 +20,11 @@ export function createInput(root) {
     const k = KEYMAP[e.code];
     if (!k) return;
     if (enabled) e.preventDefault();
-    if (e.repeat) return;
-    if (k === 'dash') { if (enabled) edge |= B.DASH; } else if (k === 'special') { if (enabled) edge |= B.SPECIAL; } else keys.add(k);
+    // 押しっぱなしの移動・踏ん張り・チャージは、リピートのイベントでも状態を保つ（ポーズから戻ったとき、押し続けているキーが効かなくなるのを防ぐ）。突進と必殺だけは、押した瞬間の 1 回
+    if (k === 'dash') { if (enabled && !e.repeat) edge |= B.DASH; return; }
+    if (k === 'special') { if (enabled && !e.repeat) edge |= B.SPECIAL; return; }
+    if (!(enabled || e.repeat)) return;
+    keys.add(k);
     if (k === 'brace') hold.brace = true;
     if (k === 'charge') hold.charge = true;
   }

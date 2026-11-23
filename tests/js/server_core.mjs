@@ -195,4 +195,67 @@ const msg = (o) => JSON.stringify(o);
   clock += 11000; lobby.message('w3', msg({ t: 'erase' })); const n3 = sent.w3.length; clock += 1000; lobby.message('w3', msg({ t: 'erase' }));
   ok('削除は 10 秒に 1 回まで', sent.w3.length === n3);
 }
+// ---- 総合：3 人以上の待機・キャンセル・重複防止・切断・連投・偽のメッセージ・時間切れ ----
+{
+  const { lobby, sent, rooms, store } = mkLobby();
+  const ids = [['q1', 101, 1500], ['q2', 102, 1530], ['q3', 103, 1800], ['q4', 104, 1790], ['q5', 105, 1100]];
+  for (const [c, i, r] of ids) { lobby.open(c); lobby.message(c, msg({ t: 'hello', pid: pid(i), nick: c, v: 1 })); const pl = store.get(pid(i)); pl.rating = r; store.put(pl); }
+  clock += 2000;
+  for (const [c] of ids) { lobby.message(c, msg({ t: 'find', char: 'ojisan' })); clock += 900; }
+  const pairs = rooms.map((r) => r.players.map((p) => p.nick).sort().join('+')).sort();
+  ok('5 人の待機：近いレート同士で 2 組が成立し、残る 1 人は待つ', rooms.length === 2 && pairs.join() === 'q1+q2,q3+q4' && lobby.queue.length === 1 && lobby.queue[0].cid === 'q5', pairs.join());
+  // 対戦中に、もう一度 find（重複マッチング）は拒否される
+  lobby.message('q1', msg({ t: 'find', char: 'frog' }));
+  ok('対戦中の二重マッチングを拒否', sent.q1.at(-1).t === 'error' && sent.q1.at(-1).code === 'in_match' && rooms.length === 2);
+  // 結果が出ると、次のマッチングを受け付ける
+  lobby.recordResult({ matchId: rooms[0].id, pids: rooms[0].players.map((p) => p.pid), winner: 0, reason: 'ringout', duration: 10 });
+  clock += 1000; lobby.message('q1', msg({ t: 'find', char: 'frog' }));
+  ok('試合が終わると、次のマッチングに入れる', sent.q1.at(-1).t === 'queued' || sent.q1.at(-1).t === 'matched');
+  // キャンセルして、再度入れる
+  lobby.message('q5', msg({ t: 'cancel' }));
+  ok('キャンセルで待機列から外れる', sent.q5.at(-1).t === 'canceled' && !lobby.queue.some((q) => q.cid === 'q5'));
+  clock += 1000; lobby.message('q5', msg({ t: 'find', char: 'sushi' }));
+  ok('キャンセルのあとで、もう一度待機できる', lobby.queue.some((q) => q.cid === 'q5') || sent.q5.at(-1).t === 'matched');
+}
+{
+  const { lobby, sent, rooms, store } = mkLobby();
+  for (const [c, i] of [['r1', 111], ['r2', 112]]) { lobby.open(c); lobby.message(c, msg({ t: 'hello', pid: pid(i), nick: c, v: 1 })); }
+  clock += 2000; lobby.message('r1', msg({ t: 'find', char: 'ojisan' }));
+  lobby.close('r1');
+  clock += 1000; lobby.message('r2', msg({ t: 'find', char: 'ojisan' }));
+  ok('待機中に切断した人とは、組まれない', rooms.length === 0 && lobby.queue.length === 1 && lobby.queue[0].cid === 'r2');
+}
+{
+  const { lobby, sent, store } = mkLobby();
+  lobby.open('f1'); lobby.message('f1', msg({ t: 'hello', pid: pid(121), nick: 'f', v: 1 }));
+  const n0 = sent.f1.length;
+  for (let i = 0; i < 100; i++) lobby.message('f1', msg({ t: 'ping', c: i }));
+  ok('連投（1 秒に 100 通）は、1 秒 20 通（hello を含む）までしか処理されない', sent.f1.length - n0 === 19, 'processed=' + (sent.f1.length - n0));
+  // 偽のメッセージ：勝敗・レート・戦績をクライアントが決めようとしても、無視される
+  clock += 2000;
+  const before = JSON.stringify(store.get(pid(121)));
+  for (const forged of [{ t: 'result', winner: 0, rating: 9999 }, { t: 'win' }, { t: 'rating', v: 3000 }, { t: 'stats', w: 99 }, { t: 'recordResult', pids: [pid(121), pid(122)], winner: 0 }, { t: 'nick', nick: { a: 1 } }, { t: 'find', char: { x: 1 } }, { t: 'hello', pid: pid(121), nick: 'f', v: 1, rating: 9999, w: 50 }]) { clock += 1000; lobby.message('f1', msg(forged)); }
+  const p = store.get(pid(121));
+  ok('勝敗・レート・戦績を送りつけても、保存された戦績は変わらない', p.rating === 1500 && p.w === 0 && p.l === 0 && p.games === 0, JSON.stringify(p) + ' vs ' + before);
+  lobby.message('f1', 'not json'); lobby.message('f1', 'x'.repeat(5000)); lobby.message('f1', msg({ t: 123 })); lobby.message('f1', msg([1, 2]));
+  ok('壊れたメッセージを送られても、サーバーは落ちない', lobby.conns.has('f1'));
+}
+{
+  // 時間切れ（両者が何もしない）：引き分け。レートも勝敗数も動かない。二重に結果を送っても反映は 1 回
+  const store = new C.MemoryStore();
+  const lobby = new C.LobbyCore({ store, now, newId, rand: () => 0.3, send() {}, close() {}, spawnRoom() {} });
+  store.put(C.newPlayer(pid(131), 'A')); store.put(C.newPlayer(pid(132), 'B'));
+  const rs = [[], []];
+  const room = new C.RoomCore({ id: 'tt', players: [{ pid: pid(131), nick: 'A', char: 'ojisan', rating: 1500, tok: 'a' }, { pid: pid(132), nick: 'B', char: 'ojisan', rating: 1500, tok: 'b' }], seed: 3, now, send: (s, m) => rs[s].push(typeof m === 'string' ? JSON.parse(m) : m), closeSlot() {}, onResult: (r) => lobby.recordResult(r) });
+  room.attach(0, 'a'); room.attach(1, 'b');
+  let g = 0; while (!room.ended && g++ < 3000) { clock += 33; room.tick(); }
+  const e = rs[0].filter((m) => m.t === 'end').at(-1);
+  ok('時間切れ（互角）：引き分けで、レートも勝敗数も動かない', room.ended && e.winner === -1 && e.reason === 'time' && e.delta === 0 && store.get(pid(131)).games === 0 && store.get(pid(131)).rating === 1500, JSON.stringify(e));
+  room.finish(0, 'ringout', false);
+  ok('終了後に、もう一度終わらせても二重に反映されない', store.get(pid(131)).games === 0 && store.get(pid(131)).w === 0);
+  // 入力：参加していないスロット・終了後の入力は無視
+  const room2 = new C.RoomCore({ id: 'tt2', players: [{ pid: pid(131), nick: 'A', char: 'ojisan', rating: 1500, tok: 'a' }, { pid: pid(132), nick: 'B', char: 'ojisan', rating: 1500, tok: 'b' }], seed: 3, now, send() {}, closeSlot() {}, onResult: () => null });
+  room2.input(0, { t: 'in', mx: 1, my: 1, b: 15 });
+  ok('部屋に入る前の入力は無視される', room2.edge[0] === 0 && room2.hold[0].mx === 0);
+}
 return { pass: results.filter((r) => r.ok).length, fail: results.filter((r) => !r.ok), total: results.length };
