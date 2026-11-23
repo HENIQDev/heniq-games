@@ -113,3 +113,8 @@
 1. 承認待ち：①M1 の commit ②GitHub リポジトリの作成方法 ③ボール避けの手触りの確認（難易度・当たり判定）
 2. M2：大量 100m 走。先に設計メモを書く（大量描画：キャラクターは単純な図形＋スプライトの一括描画、追い抜き＝レーンの入れ替わり、回避＝プレイヤーの 1〜2 ボタンの操作、群衆の人数と性能の予算：スマホで 60fps／数千体の目標を実測で詰める）。決定性（種）を守る。
 3. M3 の前：Node／wrangler の再調査、ランキングの API を Pages Functions にするか別 Worker にするかの決定（承認）。
+
+## 2026-11-23 公式 HP の push と、heniq-games のデプロイ停止の調査
+- 公式 HP：別クローンから `c3e223e`・`b4e5ffc` を main へ push（bb746e5→b4e5ffc、fast-forward）。Cloudflare の公開コミット＝GitHub main＝build-info.json（b4e5ffc）が一致。`/games`・`/games/`・`/games/crowd-sprint-3d(/)` は 302 で HENIQ GAMES へ。HP の既存ページは 200、sitemap に /games なし。元の `cms` の未コミット 3 ファイルは未接触。
+- heniq-games：公開中の内容は 240bfab と一致（画像の hash で確認）。90312e0・2acc1c0・ba45c61 は未反映。新規クローンで 240bfab〜ba45c61 の各コミットを `build.py --release`（Python 3.9）でビルド → すべて成功。コードの差分も小さく、Python 互換の問題なし → 原因はコードではなく Cloudflare 側（Git 連携・ビルド設定・ビルドログ）。ダッシュボードの確認が必要。
+- 117cbc4 は未 push（保留）。`indexing: false` は維持。
