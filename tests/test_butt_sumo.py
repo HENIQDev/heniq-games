@@ -56,14 +56,36 @@ class Logic(unittest.TestCase):
         self.assertEqual(v["fail"], [], v["fail"])
         self.assertGreaterEqual(v["pass"], 30)
 
+    def test_worker_in_fake_cloudflare(self):
+        """worker.js（Cloudflare 用）を偽の環境で動かす：眠りからの復元・自動 ping・待機中だけ alarm・接続数の上限"""
+        v = self.run_js("worker_fake.mjs")
+        self.assertEqual(v["fail"], [], v["fail"])
+        self.assertGreaterEqual(v["pass"], 12)
+
     def test_balance_bounds(self):
-        """全キャラ総当たり（AI 同士）：極端な偏りがない（勝率 25〜75%）。時間は 5〜40 秒"""
+        """全キャラ総当たり（AI 同士）：極端な偏りがない（勝率 30〜70%）。時間は 5〜40 秒"""
         v = self.run_js("balance.mjs")
         rates = {k: int(x["win"].rstrip("%")) for k, x in v["out"].items()}
         for k, r in rates.items():
-            self.assertTrue(25 <= r <= 75, "%s の勝率 %d%%（%s）" % (k, r, rates))
+            self.assertTrue(30 <= r <= 70, "%s の勝率 %d%%（%s）" % (k, r, rates))
         self.assertTrue(5 <= float(v["medianTime"]) <= 40, v["medianTime"])
-        self.assertEqual(v["reasons"].get("time", 0), 0 if False else v["reasons"].get("time", 0))
+
+    def test_balance_human_like_proxies(self):
+        """人間らしい癖（反応の遅れ・狙いのブレ・攻め方）4 種の代理で、4 種の平均の勝率が 30〜70%（実際の人間ではない）"""
+        v = self.run_js("human_proxy.mjs")
+        for k, r in v["avg"].items():
+            self.assertTrue(30 <= r <= 70, "%s の平均勝率 %d%%（%s）" % (k, r, v["avg"]))
+        for name, p in v["perProfile"].items():
+            self.assertTrue(5 <= p["median"] <= 45, (name, p["median"]))
+
+    def test_cp_difficulty_curve(self):
+        """「ふつうの腕前」の代理での CP の難易度：序盤は勝てて、終盤は難しい。ステージが進むほど（大づかみに）下がる"""
+        v = self.run_js("cp_curve.mjs")
+        rate = {int(k.rstrip("B")): int(x.split("%")[0]) for k, x in v.items()}
+        early = [rate[n] for n in (1, 5, 9, 12)]; mid = [rate[n] for n in (35, 42, 48)]; late = [rate[n] for n in (85, 95, 99)]
+        avg = lambda xs: sum(xs) / len(xs)
+        self.assertGreaterEqual(avg(early), 85, rate); self.assertTrue(20 <= avg(mid) <= 60, rate); self.assertLessEqual(avg(late), 35, rate)
+        self.assertGreater(avg(early), avg(mid)); self.assertGreater(avg(mid), avg(late))
 
 
 class Build(unittest.TestCase):

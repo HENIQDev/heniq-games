@@ -6,6 +6,7 @@ export function startDevHost(hubUrl, opts = {}) {
   const ws = new WebSocket(hubUrl.replace(/\/$/, '') + '/__server');
   const conns = new Map();   // hub の接続 ID → { kind: 'lobby'|'room', room?, slot }
   const rooms = new Map();
+  const finished = [];          // 終わった試合の通信量（無料枠の見積もりに使う実測値）
   const send = (c, m) => { if (ws.readyState === 1) ws.send(JSON.stringify({ k: 'send', c, d: typeof m === 'string' ? m : JSON.stringify(m) })); };
   const closeConn = (c) => { if (ws.readyState === 1) ws.send(JSON.stringify({ k: 'close', c })); };
   const hex = (n) => { const a = new Uint8Array(n); crypto.getRandomValues(a); return Array.from(a, (b) => b.toString(16).padStart(2, '0')).join('').slice(0, n); };
@@ -17,7 +18,7 @@ export function startDevHost(hubUrl, opts = {}) {
       const room = new RoomCore({ id: info.id, players: info.players, seed: info.seed, now: () => Date.now(), send: (slot, m) => { const c = room.cids && room.cids[slot]; if (c) send(c, m); }, closeSlot: (slot) => { const c = room.cids && room.cids[slot]; if (c) closeConn(c); }, onResult: (r) => lobby.recordResult(r) });
       room.cids = [null, null];
       rooms.set(info.id, room);
-      room.timer = setInterval(() => { room.tick(); if (room.done) { clearInterval(room.timer); for (let i = 0; i < 2; i++) if (room.cids[i]) closeConn(room.cids[i]); rooms.delete(info.id); } }, 1000 / 30);
+      room.timer = setInterval(() => { room.tick(); if (room.done) { finished.push({ id: info.id, ticks: room.ticks, seconds: room.sim.t, reason: room.endMsg && room.endMsg[0].reason, counters: room.counters }); clearInterval(room.timer); for (let i = 0; i < 2; i++) if (room.cids[i]) closeConn(room.cids[i]); rooms.delete(info.id); } }, 1000 / 30);
     },
   });
   const pumpTimer = setInterval(() => lobby.pump(), 1000);
@@ -28,7 +29,7 @@ export function startDevHost(hubUrl, opts = {}) {
       else { const r = /^\/room\/([0-9a-f]{12})$/.exec(m.path); if (r) conns.set(m.c, { kind: 'room', id: r[1], slot: -1 }); else closeConn(m.c); }
     } else if (m.k === 'msg') {
       const c = conns.get(m.c); if (!c) return;
-      if (c.kind === 'lobby') lobby.message(m.c, m.d);
+      if (c.kind === 'lobby') { if (m.d === 'ping') send(m.c, 'pong'); else lobby.message(m.c, m.d); }
       else {
         const room = rooms.get(c.id); if (!room) return;
         let j; try { j = JSON.parse(m.d); } catch (e) { return; }
@@ -48,5 +49,5 @@ export function startDevHost(hubUrl, opts = {}) {
       else { const room = rooms.get(c.id); if (room && c.slot >= 0 && room.cids[c.slot] === m.c) { room.cids[c.slot] = null; room.detach(c.slot); } }
     }
   };
-  return { ws, lobby, rooms, store, stop() { clearInterval(pumpTimer); ws.close(); } };
+  return { ws, lobby, rooms, store, finished, stop() { clearInterval(pumpTimer); ws.close(); } };
 }

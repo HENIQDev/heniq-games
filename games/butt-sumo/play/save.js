@@ -40,7 +40,9 @@ export function reset() {
   return data;
 }
 
-// オンライン対戦の「端末 ID」：サーバーが戦績を結びつけるための、ランダムな識別子（個人情報ではない）。
+// オンライン対戦の「匿名 ID」：サーバーが戦績を見つけるための、ランダムな見出し（個人情報ではない）。
+// 認証用の秘密としては扱わない：他の人には表示も送信もせず（ランキングに出るのはニックネームだけ）、ID を知っていても、
+// 待機中・対戦中の接続は乗っ取れない（サーバー側で拒否）。この ID で守っているのは、匿名のレートだけ。
 export function deviceId() {
   try {
     let id = localStorage.getItem(PID_KEY);
@@ -54,4 +56,10 @@ export function deviceId() {
   } catch (e) {
     return deviceId.mem || (deviceId.mem = Array.from({ length: 32 }, () => Math.floor(Math.random() * 16).toString(16)).join(''));
   }
+}
+
+// 匿名 ID を作り直す（オンライン戦績の削除のあと）
+export function resetDeviceId() {
+  try { localStorage.removeItem(PID_KEY); } catch (e) { /* ok */ }
+  deviceId.mem = null;
 }

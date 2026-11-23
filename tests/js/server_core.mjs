@@ -34,7 +34,10 @@ const msg = (o) => JSON.stringify(o);
   ok('部屋・トークン・相手情報', ma.room === mb.room && ma.tok !== mb.tok && ma.opp.nick !== undefined && !('pid' in ma.opp) && ma.slot !== mb.slot);
   // 同一 pid は対戦できない
   lobby.open('a2'); lobby.message('a2', msg({ t: 'hello', pid: pid(1), nick: 'アリス2', v: 1 }));
-  ok('同じ pid の 2 つ目の接続が、古い方を切る', sent.a.at(-1).t === 'error' && sent.a.at(-1).code === 'other_tab');
+  ok('ID を知っていても、対戦中の接続は乗っ取れない', sent.a2.at(-1).t === 'error' && sent.a2.at(-1).code === 'in_use' && lobby.conns.has('a'));
+  clock += 160000;
+  lobby.open('a3'); lobby.message('a3', msg({ t: 'hello', pid: pid(1), nick: 'アリス2', v: 1 }));
+  ok('対戦が終わった後は、同じ ID の新しい接続に引き継げる（古い方は切れる）', sent.a.at(-1).t === 'error' && sent.a.at(-1).code === 'other_tab' && sent.a3.at(-1).t === 'welcome');
   // ---- 部屋 ----
   const info = rooms[0];
   const rsent = [[], []];
@@ -59,8 +62,8 @@ const msg = (o) => JSON.stringify(o);
   const again = lobby.recordResult({ matchId: info.id, pids: [pid(1), pid(2)], winner: 0, reason: 'x', duration: 1 });
   ok('同じ試合の結果は二重に反映されない', again.deltas[0] === 0 && store.get(pid(1)).games === 1);
   // ランキング（3 試合未満は載らない）
-  clock += 1100; lobby.message('a2', msg({ t: 'rank' }));
-  ok('ランキング応答', sent.a2.at(-1).t === 'ranking' && sent.a2.at(-1).list.length === 0 && sent.a2.at(-1).me.rank === null);
+  clock += 1100; lobby.message('a3', msg({ t: 'rank' }));
+  ok('ランキング応答', sent.a3.at(-1).t === 'ranking' && sent.a3.at(-1).list.length === 0 && sent.a3.at(-1).me.rank === null);
 }
 // ---- 切断と復帰、放棄 ----
 {
@@ -132,5 +135,51 @@ const msg = (o) => JSON.stringify(o);
   lobby.open('z'); lobby.message('z', msg({ t: 'hello', pid: pid(43), nick: 'z', v: 1 })); clock += 2000; lobby.message('z', msg({ t: 'find', char: 'sushi' }));
   clock += 50000; lobby.pump();
   ok('相手が見つからなければ noopp', sent.z.at(-1).t === 'noopp');
+}
+// ---- 眠り（Hibernation）からの復帰：接続と待機の状態が失われない ----
+{
+  const { lobby, sent, rooms, store } = mkLobby();
+  const saved = {};
+  lobby.o.save = (cid, d) => { saved[cid] = JSON.parse(JSON.stringify(d)); };
+  for (const [c, i] of [['h1', 51], ['h2', 52]]) { lobby.open(c); lobby.message(c, msg({ t: 'hello', pid: pid(i), nick: c, v: 1 })); }
+  clock += 2000;
+  lobby.message('h1', msg({ t: 'find', char: 'ojisan' }));
+  ok('待機中の状態が保存される', saved.h1 && saved.h1.state === 'queued' && saved.h1.q.char === 'ojisan');
+  // 眠って、起きた（新しいインスタンスに、保存した状態から復元）
+  const sent2 = {}, rooms2 = [];
+  const lobby2 = new C.LobbyCore({ store, now, newId, rand: () => 0.3, send: (cid, m) => (sent2[cid] = sent2[cid] || []).push(m), close() {}, spawnRoom: (i) => rooms2.push(i), save() {} });
+  for (const cid of Object.keys(saved)) lobby2.restoreConn(cid, saved[cid]);
+  ok('復元後も待機列が残る', lobby2.queue.length === 1 && lobby2.conns.size === 2);
+  clock += 1000;
+  lobby2.message('h2', msg({ t: 'find', char: 'frog' }));
+  ok('復元後に、待機中の人と成立する', rooms2.length === 1 && sent2.h1.at(-1).t === 'matched' && sent2.h2.at(-1).t === 'matched');
+}
+// ---- 無料枠を守る上限 ----
+{
+  const mk = (limits) => { const o = mkLobby(); o.lobby.limits = { ...o.lobby.limits, ...limits }; return o; };
+  let { lobby, sent } = mk({ maxConns: 2 });
+  lobby.open('x1'); lobby.open('x2'); const r3 = lobby.open('x3');
+  ok('同時接続数の上限を超えたら断る', r3 === false && sent.x3[0].t === 'busy' && sent.x3[0].why === 'conns');
+  ({ lobby, sent } = mk({ maxMatchesPerDay: 1 }));
+  for (const [c, i] of [['d1', 61], ['d2', 62], ['d3', 63], ['d4', 64]]) { lobby.open(c); lobby.message(c, msg({ t: 'hello', pid: pid(i), nick: c, v: 1 })); }
+  clock += 2000; lobby.message('d1', msg({ t: 'find', char: 'ojisan' })); lobby.message('d2', msg({ t: 'find', char: 'ojisan' }));
+  clock += 2000; lobby.message('d3', msg({ t: 'find', char: 'ojisan' }));
+  ok('1 日の対戦数の上限を超えたら、新しい対戦は始めない（既存の対戦は続く）', sent.d3.at(-1).t === 'busy' && sent.d3.at(-1).why === 'daily' && sent.d1.at(-1).t === 'matched');
+  ({ lobby, sent } = mk({ maxActiveMatches: 1 }));
+  for (const [c, i] of [['e1', 71], ['e2', 72], ['e3', 73]]) { lobby.open(c); lobby.message(c, msg({ t: 'hello', pid: pid(i), nick: c, v: 1 })); }
+  clock += 2000; lobby.message('e1', msg({ t: 'find', char: 'ojisan' })); lobby.message('e2', msg({ t: 'find', char: 'ojisan' }));
+  clock += 2000; lobby.message('e3', msg({ t: 'find', char: 'ojisan' }));
+  ok('同時進行の対戦数の上限を超えたら断る', sent.e3.at(-1).t === 'busy' && sent.e3.at(-1).why === 'active');
+}
+// ---- 戦績の削除・書き込みの節約 ----
+{
+  const { lobby, sent, store } = mkLobby();
+  let writes = 0; const put = store.put.bind(store); store.put = (p) => { writes++; put(p); };
+  lobby.open('w1'); lobby.message('w1', msg({ t: 'hello', pid: pid(81), nick: 'あ', v: 1 }));
+  const w1 = writes;
+  lobby.close('w1'); lobby.open('w2'); lobby.message('w2', msg({ t: 'hello', pid: pid(81), nick: 'あ', v: 1 }));
+  ok('同じ ID・同じ名前で再接続しても、保存（書き込み）しない', writes === w1 && w1 === 1, 'writes=' + writes);
+  lobby.message('w2', msg({ t: 'erase' }));
+  ok('自分の戦績をサーバーから削除できる', sent.w2.at(-1).t === 'erased' && store.get(pid(81)) === null);
 }
 return { pass: results.filter((r) => r.ok).length, fail: results.filter((r) => !r.ok), total: results.length };

@@ -9,13 +9,17 @@ export function createNet(opts) {
   const setState = (s) => { if (state !== s) { state = s; emit('state', s); } };
   const jsonOf = (ev) => { try { return JSON.parse(ev.data); } catch (e) { return null; } };
 
+  // 生存確認と遅延の測定。ロビーへは文字列 'ping'（サーバーが眠ったまま 'pong' を自動で返す＝課金されない）、試合中は部屋へ 5 秒ごと
+  let lobbyPingAt = 0;
   function startPing() {
     clearInterval(pingTimer);
     pingTimer = setInterval(() => {
-      const c = ++pingN; pingSent.set(c, performance.now());
-      send(room && room.readyState === 1 ? room : lobby, { t: 'ping', c });
-      if (pingSent.size > 10) pingSent.delete(pingSent.keys().next().value);
-    }, 4000);
+      if (room && room.readyState === 1) {
+        const c = ++pingN; pingSent.set(c, performance.now());
+        send(room, { t: 'ping', c });
+        if (pingSent.size > 10) pingSent.delete(pingSent.keys().next().value);
+      } else if (lobby && lobby.readyState === 1) { lobbyPingAt = performance.now(); send(lobby, 'ping'); }
+    }, 5000);
   }
   function send(ws, obj) { if (ws && ws.readyState === 1) try { ws.send(typeof obj === 'string' ? obj : JSON.stringify(obj)); return true; } catch (e) { return false; } return false; }
   function onPong(m) { const t0 = pingSent.get(m.c); if (t0) { rtt = performance.now() - t0; pingSent.delete(m.c); emit('rtt', rtt); } if (typeof m.online === 'number') emit('online', m.online); }
@@ -32,7 +36,10 @@ export function createNet(opts) {
       const timer = setTimeout(() => { if (!opened) { try { ws.close(); } catch (e) { /* ok */ } } }, 8000);
       ws.onopen = () => { opened = true; clearTimeout(timer); send(ws, { t: 'hello', pid: opts.pid, nick: opts.nick(), v: PROTO }); startPing(); };
       ws.onmessage = (ev) => {
+        if (ev.data === 'pong') { if (lobbyPingAt) { rtt = performance.now() - lobbyPingAt; lobbyPingAt = 0; emit('rtt', rtt); } return; }
         const m = jsonOf(ev); if (!m) return;
+        if (m.t === 'busy') { closed = true; setState('offline'); emit('busy', m.why); return; }
+        if (m.t === 'erased') { emit('erased'); return; }
         if (m.t === 'welcome') { setState('ready'); emit('welcome', m); }
         else if (m.t === 'queued') { setState('queued'); emit('queued', m); }
         else if (m.t === 'matched') { roomInfo = m; setState('matched'); emit('matched', m); }
@@ -46,6 +53,7 @@ export function createNet(opts) {
       ws.onerror = () => { /* onclose で扱う */ };
     },
     find(char) { send(lobby, { t: 'find', char }); },
+    erase() { send(lobby, { t: 'erase' }); },
     cancel() { send(lobby, { t: 'cancel' }); setState('ready'); },
     rank() { send(lobby, { t: 'rank' }); },
     setNick(n) { send(lobby, { t: 'nick', nick: n }); },

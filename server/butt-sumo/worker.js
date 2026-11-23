@@ -2,7 +2,11 @@
 // ・/lobby  … マッチングと戦績・ランキング（Lobby：全体で 1 つ）
 // ・/room/<id> … 1 試合（Room：試合ごとに 1 つ。30 Hz で sim.js を実行して勝敗を決める）
 // ロジックは core.js（テスト済み）。このファイルは、通信・保存・タイマーだけを担当する薄い部分。
-import { LobbyCore, RoomCore, newPlayer } from './core.js';
+// 【無料枠対策】Lobby は WebSocket Hibernation API（ctx.acceptWebSocket）を使う：接続が開いていても、メッセージが無い間は眠り、Duration（GB-s）が加算されない。
+//  ping は setWebSocketAutoResponse（眠ったまま自動で返す）。マッチングの定期処理は、待機中の人がいる間だけ alarm で動かす（setInterval は眠りを妨げるので使わない）。
+//  Room は 30 Hz のタイマーが必要なので眠れないが、試合の間（最長約 70 秒）だけ動き、終わると止まって解放される。
+import { DurableObject } from 'cloudflare:workers';
+import { LobbyCore, RoomCore, LIMITS } from './core.js';
 
 const HEX = '0123456789abcdef';
 function newId(n) { const a = new Uint8Array(n); crypto.getRandomValues(a); let s = ''; for (const b of a) s += HEX[b >> 4] + HEX[b & 15]; return s.slice(0, n); }
@@ -17,9 +21,14 @@ class SqlStore {
     sql.exec('CREATE INDEX IF NOT EXISTS idx_rank ON players(games, rating)');
     sql.exec('CREATE TABLE IF NOT EXISTS results(id TEXT PRIMARY KEY, at INTEGER)');
     sql.exec('CREATE TABLE IF NOT EXISTS pairs(key TEXT, at INTEGER)');
+    sql.exec('CREATE TABLE IF NOT EXISTS counters(k TEXT PRIMARY KEY, n INTEGER)');
+    sql.exec('CREATE TABLE IF NOT EXISTS rooms(id TEXT PRIMARY KEY, at INTEGER)');
     const now = Date.now();
-    // 保存する情報を最小限にする：一度も試合をしていない端末は 30 日で、結果の記録は 7 日で消す
+    // 保存する情報を最小限にする：一度も試合をしていない端末は 30 日、試合をした端末も 180 日 来なければ、結果の記録は 7 日で消す
     sql.exec('DELETE FROM players WHERE games = 0 AND updated < ?', now - 30 * DAY);
+    sql.exec('DELETE FROM players WHERE updated < ?', now - 180 * DAY);
+    sql.exec('DELETE FROM counters WHERE k < ?', new Date(now - 3 * DAY).toISOString().slice(0, 10));
+    sql.exec('DELETE FROM rooms WHERE at < ?', now - 600000);
     sql.exec('DELETE FROM results WHERE at < ?', now - 7 * DAY);
     sql.exec('DELETE FROM pairs WHERE at < ?', now - DAY);
   }
@@ -31,40 +40,83 @@ class SqlStore {
   top(n) { return this.sql.exec('SELECT * FROM players WHERE games >= 3 ORDER BY rating DESC, w DESC LIMIT ?', n).toArray(); }
   rankOf(p) { if (p.games < 3) return null; return this.sql.exec('SELECT COUNT(*) + 1 AS r FROM players WHERE games >= 3 AND (rating > ? OR (rating = ? AND w > ?))', p.rating, p.rating, p.w).toArray()[0].r; }
   count() { return this.sql.exec('SELECT COUNT(*) AS c FROM players').toArray()[0].c; }
+  delete(pid) { this.sql.exec('DELETE FROM players WHERE pid = ?', pid); return true; }
+  bump(kind, day) { this.sql.exec('INSERT INTO counters(k, n) VALUES(?, 1) ON CONFLICT(k) DO UPDATE SET n = n + 1', day + ':' + kind); }
+  daily(kind, day) { const r = this.sql.exec('SELECT n FROM counters WHERE k = ?', day + ':' + kind).toArray()[0]; return r ? r.n : 0; }
+  addRoom(id, now) { this.sql.exec('INSERT OR IGNORE INTO rooms(id, at) VALUES(?, ?)', id, now); }
+  activeRooms(now, lifeMs) { return this.sql.exec('SELECT COUNT(*) AS c FROM rooms WHERE at > ?', now - lifeMs).toArray()[0].c; }
   hasResult(id) { return this.sql.exec('SELECT 1 FROM results WHERE id = ?', id).toArray().length > 0; }
   addResult(id) { this.sql.exec('INSERT OR IGNORE INTO results(id, at) VALUES(?, ?)', id, Date.now()); }
   recentPair(a, b, now, windowMs) { const key = a < b ? a + b : b + a; return this.sql.exec('SELECT COUNT(*) AS c FROM pairs WHERE key = ? AND at > ?', key, now - windowMs).toArray()[0].c; }
   addPair(a, b, now) { const key = a < b ? a + b : b + a; this.sql.exec('INSERT INTO pairs(key, at) VALUES(?, ?)', key, now); }
 }
 
-export class Lobby {
+function ipKey(req) {
+  // 接続数の制限だけに使う、IP の短いハッシュ（IP そのものは保存しない。眠りの間も接続に付けておく小さな値）
+  const ip = req.headers.get('CF-Connecting-IP') || '';
+  let h = 2166136261;
+  for (let i = 0; i < ip.length; i++) { h ^= ip.charCodeAt(i); h = Math.imul(h, 16777619); }
+  return (h >>> 0).toString(16);
+}
+
+// 待機中の人がいる間だけ、5 秒ごとに「レート差の許容を広げる・待ちきれた人を外す」処理を動かす（alarm の 1 回は、リクエスト 1 回＋行の書き込み 1 回として数えられる）。
+// 新しい人が待機に入ったときは、その場で（alarm を待たずに）組み合わせを試す。
+const ALARM_MS = 5000;
+
+export class Lobby extends DurableObject {
   constructor(ctx, env) {
-    this.ctx = ctx; this.env = env; this.socks = new Map(); this.timer = null;
+    super(ctx, env);
+    this.socks = new Map();
+    // ping は、眠ったまま自動で返す（Duration も課金されない）
+    ctx.setWebSocketAutoResponse(new WebSocketRequestResponsePair('ping', 'pong'));
     this.core = new LobbyCore({
-      store: new SqlStore(ctx.storage.sql), now: () => Date.now(), rand, newId,
+      store: new SqlStore(ctx.storage.sql), now: () => Date.now(), rand, newId, limits: { maxConns: LIMITS.maxConns },
       send: (cid, m) => { const s = this.socks.get(cid); if (s) try { s.send(text(m)); } catch (e) { /* 切れた */ } },
-      close: (cid) => { const s = this.socks.get(cid); if (s) try { s.close(1000, 'bye'); } catch (e) { /* 既に閉じている */ } this.socks.delete(cid); },
+      close: (cid) => { const s = this.socks.get(cid); if (s) try { s.close(1000, 'bye'); } catch (e) { /* 既に閉じている */ } this.socks.delete(cid); this.core.conns.delete(cid); },
+      save: (cid, data) => { const s = this.socks.get(cid); if (s) try { s.serializeAttachment({ ...data, ip: s.deserializeAttachment()?.ip }); } catch (e) { /* 保存できなくても動く */ } },
       spawnRoom: (info) => { const stub = env.ROOM.get(env.ROOM.idFromName(info.id)); ctx.waitUntil(stub.fetch('https://room/init', { method: 'POST', body: JSON.stringify(info) })); },
     });
+    // 眠りから起きたとき：開いたままの接続と、待機の状態を復元する
+    for (const ws of ctx.getWebSockets()) {
+      const a = ws.deserializeAttachment();
+      if (a && a.cid) { this.socks.set(a.cid, ws); this.core.restoreConn(a.cid, a); }
+    }
   }
   async fetch(req) {
     const url = new URL(req.url);
     if (url.pathname === '/_result' && req.method === 'POST') return Response.json(this.core.recordResult(await req.json()));
     if (req.headers.get('Upgrade') !== 'websocket') return new Response('expected websocket', { status: 426 });
+    const sockets = this.ctx.getWebSockets();
+    const key = ipKey(req);
+    if (sockets.length >= LIMITS.maxConns || sockets.filter((w) => (w.deserializeAttachment() || {}).ip === key).length >= LIMITS.maxConnsPerIp) {
+      return new Response('busy', { status: 503, headers: { 'retry-after': '60' } });
+    }
     const pair = new WebSocketPair();
     const [client, server] = Object.values(pair);
-    server.accept();
     const cid = newId(10);
+    this.ctx.acceptWebSocket(server);             // Hibernation API：メッセージが無い間は眠る
+    server.serializeAttachment({ cid, ip: key });
     this.socks.set(cid, server);
     this.core.open(cid);
-    server.addEventListener('message', (ev) => { this.core.message(cid, typeof ev.data === 'string' ? ev.data : ''); this.ensureTimer(); });
-    const gone = () => { this.core.close(cid); this.socks.delete(cid); };
-    server.addEventListener('close', gone); server.addEventListener('error', gone);
     return new Response(null, { status: 101, webSocket: client });
   }
-  ensureTimer() {
-    if (this.timer || !this.core.queue.length) return;
-    this.timer = setInterval(() => { this.core.pump(); if (!this.core.queue.length) { clearInterval(this.timer); this.timer = null; } }, 1000);
+  cidOf(ws) { const a = ws.deserializeAttachment(); return a && a.cid; }
+  async webSocketMessage(ws, msg) {
+    const cid = this.cidOf(ws);
+    if (!cid || typeof msg !== 'string') return;
+    if (!this.core.conns.has(cid)) { this.socks.set(cid, ws); this.core.restoreConn(cid, ws.deserializeAttachment()); }
+    this.core.message(cid, msg);
+    await this.ensureAlarm();
+  }
+  async webSocketClose(ws) { const cid = this.cidOf(ws); if (cid) { this.core.close(cid); this.socks.delete(cid); } }
+  async webSocketError(ws) { return this.webSocketClose(ws); }
+  // マッチングの定期処理：待機中の人がいる間だけ、5 秒ごとの alarm で動かす（誰も待っていなければ、何も動かない＝眠る）
+  async ensureAlarm() {
+    if (this.core.queue.length && (await this.ctx.storage.getAlarm()) === null) await this.ctx.storage.setAlarm(Date.now() + ALARM_MS);
+  }
+  async alarm() {
+    this.core.pump();
+    if (this.core.queue.length) await this.ctx.storage.setAlarm(Date.now() + ALARM_MS);
   }
 }
 

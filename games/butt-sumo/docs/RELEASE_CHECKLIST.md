@@ -13,8 +13,8 @@
 ## 未完了・未確認（公開前に必要）
 - [ ] **オンライン対戦サーバーを Cloudflare にデプロイ**（承認事項：外部サービスの設定変更。wrangler（Node）のインストール、または Cloudflare のダッシュボードの操作が必要）。手順は `server/butt-sumo/README.md`。デプロイ前は「準備中」と表示し、通信しない。
 - [ ] デプロイ後：`play/config.js` の `SERVER`、`game.json` の `network_hosts`・`data.network` を更新 → 本番で 2 台の端末を使って実際に対戦して確認。
-- [ ] Lobby の Hibernation 対応、または有料プランの判断（`ONLINE_DESIGN.md` の 5）。
-- [ ] 端末 ID をブラウザに保存することの、HENIQ ルールとの整合の判断（`ONLINE_DESIGN.md` の 6）。
+- [x] Lobby の Hibernation 対応・待機中だけの alarm・上限（コード済み。**Cloudflare 上では未検証**）。
+- [x] 匿名 ID の方式（オーナー決定）。**CLAUDE.md の一文の改訂の承認**が必要（`ONLINE_DESIGN.md` の 6）。
 - [ ] プライバシーページ（`catalog/site.json` の `privacy_finalized`）の再確認：BUTT SUMO の保存・通信の記載。
 - [ ] iPhone・Android の実機での確認（操作感・FPS・発熱・音）。ヘッドレス Chrome とエミュレーションだけで確認した。
 - [ ] 人間の実プレイでのバランス・難易度の調整（`BALANCE_TEST.md`）。

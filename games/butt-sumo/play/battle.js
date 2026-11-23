@@ -135,15 +135,16 @@ export function createBattle(ctx) {
         view = sim;
         updateHud(sim);
       } else {
-        // オンライン：入力を 30 Hz で送る（変化があったときと、0.1 秒ごと）
+        // オンライン：入力は、変化があったときだけ送る（変化がなくても 0.25 秒ごとに生存を知らせる。無料枠のリクエスト数を節約）
         acc += dt;
         let guard = 0;
         while (acc >= DT && guard++ < 4) {
           acc -= DT;
           const m = readInput();
-          const key = m.mx.toFixed(2) + ',' + m.my.toFixed(2) + ',' + (m.b & 6);
+          const qx = Math.round(m.mx * 10) / 10, qy = Math.round(m.my * 10) / 10;        // スティックは 0.1 刻み（なぞり続けても送信が増えすぎない）
+          const key = qx + ',' + qy + ',' + (m.b & 6);
           sendTimer += DT;
-          if ((m.b & 9) || key !== lastSent || sendTimer >= 0.1) { if (net.sendInput(m.mx, m.my, m.b)) { lastSent = key; sendTimer = 0; } }
+          if ((m.b & 9) || (key !== lastSent && sendTimer >= 0.066) || sendTimer >= 0.25) { if (net.sendInput(qx, qy, m.b)) { lastSent = key; sendTimer = 0; } }       // 変化の送信は最大 15 回／秒。突進・必殺は即時
         }
         const rt = performance.now() - 90;
         if (snaps.length) {

@@ -192,7 +192,15 @@ export function createScreens(G) {
       toggle(t('setTouch'), () => st.touch === 'on', (v) => { st.touch = v ? 'on' : 'auto'; }),
       h('label', 'set-row', [h('span', null, t('setNick')), nick]),
       h('div', 'set-row', [reset]),
-      h('p', 'set-note', '保存されるのは、このブラウザの中の「進行状況・設定」だけです。オンライン対戦を使うと、端末ごとのランダムな ID とニックネーム、戦績がサーバーに保存されます。'),
+      (() => {
+        const e = btn('オンライン戦績をサーバーから削除', 'btn-sub danger', () => {
+          if (e.dataset.arm !== '1') { e.dataset.arm = '1'; e.textContent = 'レート・戦績をサーバーから消し、匿名 ID を作り直します。元に戻せません。もう一度押すと実行'; e.classList.add('armed'); setTimeout(() => { e.dataset.arm = ''; e.textContent = 'オンライン戦績をサーバーから削除'; e.classList.remove('armed'); }, 7000); return; }
+          e.textContent = '削除しています…';
+          G.eraseOnline((ok, why) => { e.textContent = ok ? '削除しました（新しい匿名 ID になりました）' : why === 'unavailable' ? 'オンライン対戦は準備中のため、サーバーに保存された情報はありません' : '削除できませんでした。通信を確認してもう一度お試しください'; e.classList.remove('armed'); });
+        });
+        return h('div', 'set-row', [e]);
+      })(),
+      h('p', 'set-note', '保存されるのは、このブラウザの中の「進行状況・設定」だけです。オンライン対戦を使うと、匿名のランダムな ID・ニックネーム・レート・勝敗数・最終利用日時がサーバー（Cloudflare）に保存されます（個人情報は集めません。ID は他の人には見えません）。上のボタンでいつでも削除できます。'),
     ])]);
   };
 
@@ -217,6 +225,7 @@ export function createScreens(G) {
     const panel = h('div', 'panel');
     if (st.phase === 'unavailable') panel.append(h('p', 'r-sub', t('unavailable')), h('p', 'r-sub', t('unavailableHint')), btn(t('toMenu'), 'btn-go', () => G.go('menu')));
     else if (st.phase === 'connecting') panel.append(h('div', 'spinner'), h('p', 'r-sub', t('onlineConnecting')));
+    else if (st.phase === 'busy') panel.append(h('p', 'r-sub', st.msg), btn(t('toMenu'), 'btn-go', () => G.go('menu')));
     else if (st.phase === 'error') panel.append(h('p', 'r-sub', st.msg || t('onlineOffline')), btn(t('retry'), 'btn-go', () => G.enterOnline()), btn(t('toMenu'), 'btn-sub', () => G.go('menu')));
     else if (st.phase === 'lobby') {
       const me = st.me || { rating: 1500, w: 0, l: 0, streak: 0, best: 0, games: 0 };

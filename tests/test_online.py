@@ -102,6 +102,17 @@ class OnlineTest(unittest.TestCase):
         self.assertEqual(total, 6, st)
         self.assertEqual(sum(p["w"] for p in st), 3); self.assertEqual(sum(p["l"] for p in st), 3)
         self.assertEqual(sum(p["r"] for p in st), 3000, "レートの合計が保存されない（ゼロサム）：%s" % st)
+        # 通信量の実測（無料枠の見積もりの根拠）。ボットはキーを連打するので、人間より多めになる
+        fin = json.loads(self.server.eval("JSON.stringify(host.finished)"))
+        self.assertGreaterEqual(len(fin), 3)
+        rows = []
+        for f in fin:
+            c = f["counters"]
+            rows.append({"seconds": round(f["seconds"], 1), "in_msgs_per_player": [c["inMsgs"][0], c["inMsgs"][1]], "out_msgs_per_player": c["outMsgs"], "out_kb_per_player": [round(x / 1024, 1) for x in c["outBytes"]]})
+        (ROOT / "tests" / "_out").mkdir(exist_ok=True)
+        (ROOT / "tests" / "_out" / "online_traffic.json").write_text(json.dumps(rows, ensure_ascii=False, indent=1))
+        for r in rows:
+            self.assertLess(max(r["in_msgs_per_player"]), 40 * max(r["seconds"], 5), "入力の送信が多すぎる：%s" % r)
         # ランキングに載る（3 試合）
         A.eval("__bs.G.go('ranking')")
         self.assertTrue(A.wait_for("document.querySelectorAll('.rk').length>=2", 10), "ランキングが出ない")

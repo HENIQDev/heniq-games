@@ -14,7 +14,7 @@ export const KO_TICKS = 48;
 const SUBSTEPS = 2;
 const PERFECT_BRACE = 0.3;
 const MAX_K = 26;
-export const TUNE = { kb: 4.0, dmgScale: 0.009, hitDmg: 4.5, dashRest: 1.0 };
+export const TUNE = { kb: 4.0, dmgScale: 0.009, hitDmg: 4.5, dashRest: 1.0, massExp: 0.25, defExp: 0.3, pushExp: 0.6 };
 
 const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
 const hyp = Math.hypot;
@@ -111,7 +111,7 @@ function endSpecial(f) {
 }
 
 function knockOn(s, target, nx, ny, power, bonusDmg, stunT) {
-  const m = Math.pow(massOf(target), 0.4) * Math.pow(defOf(target), 0.35);
+  const m = Math.pow(massOf(target), TUNE.massExp) * Math.pow(defOf(target), TUNE.defExp);
   const k = (power * (1 + target.dmg * TUNE.dmgScale)) / m;
   target.kx += nx * k; target.ky += ny * k;
   target.dmg += bonusDmg / defOf(target);
@@ -133,7 +133,7 @@ function updateSpecial(s, i) {
       push(s, { t: 'quake', x: f.x, y: f.y, r: rng, i });
       if (!o.out && !o.air && d < rng) {
         const half = o.brace ? 0.5 : 1;
-        knockOn(s, o, dx / d, dy / d, (kind === 'quake' ? 12.5 : 8.5) * half * f.atk * (1 - 0.35 * (d / rng)), kind === 'quake' ? 13 : 8, kind === 'cry' ? 1.0 : 0.3);
+        knockOn(s, o, dx / d, dy / d, (kind === 'quake' ? 10.5 : 8) * half * f.atk * (1 - 0.35 * (d / rng)), kind === 'quake' ? 13 : 8, kind === 'cry' ? 1.0 : 0.3);
         f.hits++; o.taken++; f.gau = Math.min(100, f.gau + 8);
       }
     }
@@ -161,7 +161,7 @@ function updateSpecial(s, i) {
       let ux = px / (pm || 1), uy = py / (pm || 1);
       if (pm < 0.3) { ux = ox / om; uy = oy / om; }
       push(s, { t: 'quake', x: f.x, y: f.y, r: 2.2, i });
-      if (!o.out) { knockOn(s, o, ux, uy, 11.5 * f.atk, 10, 0.35); f.hits++; o.taken++; push(s, { t: 'hit', i, j: 1 - i, x: o.x, y: o.y, p: 0.8, kind: 'butt' }); }
+      if (!o.out) { knockOn(s, o, ux, uy, 8.5 * f.atk, 8, 0.35); f.hits++; o.taken++; push(s, { t: 'hit', i, j: 1 - i, x: o.x, y: o.y, p: 0.8, kind: 'butt' }); }
     }
     if (f.specStage === 0) { f.z = Math.max(0, f.z); }
   }
@@ -260,7 +260,7 @@ function attackInfo(f, n) {
   let pow = 0, omni = false, kind = 'butt';
   if (f.dashT > 0) pow = f.dashPow;
   else if (f.spin) { pow = 1.25 * cOf(f).power * f.atk; omni = true; kind = 'spin'; }
-  else if (f.slide && hyp(f.kx, f.ky) > 3.5) { pow = 1.45 * cOf(f).power * f.atk; omni = true; kind = 'slide'; }
+  else if (f.slide && hyp(f.kx, f.ky) > 3.5) { pow = 1.75 * cOf(f).power * f.atk; omni = true; kind = 'slide'; }
   if (pow <= 0) return null;
   const align = omni ? 1 : Math.cos(f.ang) * n[0] + Math.sin(f.ang) * n[1];
   if (align < 0.55) return null;
@@ -301,7 +301,7 @@ function collide(s) {
   if (d >= rr) return;
   if (d < 1e-4) { dx = 0; dy = 1; d = 1e-4; }
   const n = [dx / d, dy / d];
-  const ma = massOf(a) * (a.brace ? 3 : 1), mb = massOf(b) * (b.brace ? 3 : 1);
+  const ma = Math.pow(massOf(a), TUNE.pushExp) * (a.brace ? 3 : 1), mb = Math.pow(massOf(b), TUNE.pushExp) * (b.brace ? 3 : 1);
   const over = rr - d;
   a.x -= n[0] * over * (mb / (ma + mb)); a.y -= n[1] * over * (mb / (ma + mb));
   b.x += n[0] * over * (ma / (ma + mb)); b.y += n[1] * over * (ma / (ma + mb));

@@ -6,6 +6,7 @@
 ```bash
 python3 -m unittest tests.test_online        # サーバー役 1・プレイヤー 2 の Chrome を本物の WebSocket でつないで、対戦・レート・切断・再接続を確認
 python3 tools/jsrun.py tests/js/server_core.mjs   # ロジックの単体検査
+python3 tools/jsrun.py tests/js/worker_fake.mjs   # worker.js を偽の Cloudflare 環境で検査（眠り・alarm・上限）
 ```
 
 ## Cloudflare へのデプロイ（承認が必要な操作。まだ実行していない）

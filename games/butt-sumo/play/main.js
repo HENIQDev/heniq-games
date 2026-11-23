@@ -156,7 +156,7 @@ function cpEnded(r, st) {
 function netHandlers() {
   return {
     state() {},
-    welcome(m) { G.online = { ...G.online, phase: 'lobby', me: m.me, rank: m.rank, online: m.online }; if (G.pendingFind) { G.pendingFind = false; G.findMatch(); } else if (G.screen === 'online') G.go('online'); if (G.pendingRank) { G.pendingRank = false; G.net.rank(); } },
+    welcome(m) { G.online = { ...G.online, phase: 'lobby', me: m.me, rank: m.rank, online: m.online }; if (G.pendingFind) { G.pendingFind = false; G.findMatch(); } else if (G.screen === 'online') G.go('online'); if (G.pendingRank) { G.pendingRank = false; G.net.rank(); } if (G.pendingErase) { G.pendingErase = false; G.net.erase(); } },
     queued(m) { G.online = { ...G.online, phase: 'search', online: m.online }; if (G.screen === 'online') G.go('online'); },
     noopp() { G.online = { ...G.online, phase: 'noopp' }; if (G.screen === 'online') G.go('online'); },
     matched(m) {
@@ -166,9 +166,15 @@ function netHandlers() {
       setTimeout(() => { if (G.online.phase === 'matched' && G.net) G.net.joinRoom(); }, 1600);
     },
     ranking(m) { if (G.rankCb) { const cb = G.rankCb; G.rankCb = null; cb(m); } },
+    busy(why) {
+      const msg = why === 'daily' ? '本日のオンライン対戦の枠がいっぱいになりました。明日またお試しください（CP ステージは遊べます）。' : 'ただいまオンライン対戦が混み合っています。しばらくしてから、もう一度お試しください。';
+      G.online = { ...G.online, phase: 'busy', msg };
+      if (G.screen === 'online') G.go('online');
+    },
+    erased() { store.resetDeviceId(); if (G.eraseCb) { const cb = G.eraseCb; G.eraseCb = null; cb(true); } if (G.net) { G.net.close(); G.net = null; } },
     error(code) {
       if (G.battle && G.battle.status) { if (code === 'bad_token') G.battle.status('接続エラー'); return; }
-      const msg = code === 'other_tab' ? '別のタブでオンライン対戦を開いているため、こちらは切断されました。' : code === 'unavailable' ? t('unavailable') : t('onlineOffline');
+      const msg = code === 'in_use' ? 'この端末のオンライン対戦は、別のタブで待機中か対戦中です。終わってからお試しください。' : code === 'other_tab' ? '別のタブでオンライン対戦を開いているため、こちらは切断されました。' : code === 'unavailable' ? t('unavailable') : t('onlineOffline');
       G.online = { ...G.online, phase: code === 'unavailable' ? 'unavailable' : 'error', msg };
       if (G.rankCb) { const cb = G.rankCb; G.rankCb = null; cb(null, code === 'unavailable' ? 'unavailable' : 'offline'); return; }
       if (G.screen === 'online') G.go('online');
@@ -213,6 +219,14 @@ G.findMatch = () => {
 };
 G.cancelFind = () => { if (G.net) G.net.cancel(); G.online = { ...G.online, phase: 'lobby' }; G.go('online'); };
 G.leaveOnline = () => { if (G.net) { G.net.close(); G.net = null; } G.online = { phase: serverUrl ? 'idle' : 'unavailable' }; };
+G.eraseOnline = (cb) => {
+  if (!serverUrl) { cb(false, 'unavailable'); return; }
+  G.eraseCb = (ok) => cb(ok);
+  G.pendingErase = true;
+  const had = G.net && G.net.state === 'ready';
+  ensureNet();
+  if (had) { G.pendingErase = false; G.net.erase(); }
+};
 G.loadRanking = (cb) => {
   if (!serverUrl) { cb(null, 'unavailable'); return; }
   G.rankCb = cb;
