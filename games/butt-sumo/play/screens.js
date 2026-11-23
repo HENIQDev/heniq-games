@@ -194,13 +194,13 @@ export function createScreens(G) {
       h('div', 'set-row', [reset]),
       (() => {
         const e = btn('オンライン戦績をサーバーから削除', 'btn-sub danger', () => {
-          if (e.dataset.arm !== '1') { e.dataset.arm = '1'; e.textContent = 'レート・戦績をサーバーから消し、匿名 ID を作り直します。元に戻せません。もう一度押すと実行'; e.classList.add('armed'); setTimeout(() => { e.dataset.arm = ''; e.textContent = 'オンライン戦績をサーバーから削除'; e.classList.remove('armed'); }, 7000); return; }
+          if (e.dataset.arm !== '1') { e.dataset.arm = '1'; e.textContent = 'レート・戦績をサーバーから消し、匿名 ID を作り直します。元に戻せません（消した戦績は復元できません）。もう一度押すと実行'; e.classList.add('armed'); setTimeout(() => { e.dataset.arm = ''; e.textContent = 'オンライン戦績をサーバーから削除'; e.classList.remove('armed'); }, 7000); return; }
           e.textContent = '削除しています…';
-          G.eraseOnline((ok, why) => { e.textContent = ok ? '削除しました（新しい匿名 ID になりました）' : why === 'unavailable' ? 'オンライン対戦は準備中のため、サーバーに保存された情報はありません' : '削除できませんでした。通信を確認してもう一度お試しください'; e.classList.remove('armed'); });
+          G.eraseOnline((ok, why) => { e.textContent = ok ? '削除しました（新しい匿名 ID になりました）' : why === 'unavailable' ? 'オンライン対戦は準備中のため、サーバーに保存された情報はありません' : why === 'busy' ? '待機中・対戦中は削除できません。終わってからお試しください' : '削除できませんでした。通信を確認してもう一度お試しください'; e.classList.remove('armed'); });
         });
         return h('div', 'set-row', [e]);
       })(),
-      h('p', 'set-note', '保存されるのは、このブラウザの中の「進行状況・設定」だけです。オンライン対戦を使うと、匿名のランダムな ID・ニックネーム・レート・勝敗数・最終利用日時がサーバー（Cloudflare）に保存されます（個人情報は集めません。ID は他の人には見えません）。上のボタンでいつでも削除できます。'),
+      h('p', 'set-note', '保存されるのは、このブラウザの中の「進行状況・解放したキャラ・自己ベスト・設定」だけです（消すまで残ります。上の「進行データを消す」で削除できます）。ニックネームに、本名などの個人情報は入れないでください。オンライン対戦を使うと、匿名のランダムな ID・ニックネーム・レート・勝敗数・最終利用日時がサーバー（Cloudflare）に保存されます（個人情報は集めません。ID は他の人には見えません）。上のボタンでいつでも削除できます。【大切】匿名 ID はこのブラウザにだけ保存されます。ブラウザのデータを消したり、端末を変えたり、機種変更をすると ID を失い、オンライン戦績・レートは復元できません（アカウントやメールを持たないため、引き継ぎの方法はありません。サーバーには古い記録が残りますが、本人のものと確認できないため戻せず、一定期間後に自動で削除されます）。'),
     ])]);
   };
 
@@ -236,6 +236,7 @@ export function createScreens(G) {
         btn('キャラを変える', 'btn-sub', () => { G.go('chars', { purpose: 'pick', current: G.save.char, onPick: (id) => { G.save.char = id; G.persist(); G.go('online'); }, back: () => G.go('online') }); }),
         btn('対戦相手をさがす', 'btn-go', () => G.findMatch()),
         h('p', 'set-note', 'オンライン人数：' + (st.online || 1) + '　／　対戦相手がいないときは、しばらく待つか、時間をおいてもう一度。'),
+        h('p', 'set-note', 'この端末の戦績は、ブラウザのデータを消したり端末を変えたりすると復元できません（アカウント登録不要の匿名方式のため）。'),
       );
     } else if (st.phase === 'search') {
       const sec = h('p', 'r-sub big', '0');

@@ -173,6 +173,7 @@ function netHandlers() {
     },
     erased() { store.resetDeviceId(); if (G.eraseCb) { const cb = G.eraseCb; G.eraseCb = null; cb(true); } if (G.net) { G.net.close(); G.net = null; } },
     error(code) {
+      if (code === 'erase_busy' && G.eraseCb) { const cb = G.eraseCb; G.eraseCb = null; cb(false, 'busy'); return; }
       if (G.battle && G.battle.status) { if (code === 'bad_token') G.battle.status('接続エラー'); return; }
       const msg = code === 'in_use' ? 'この端末のオンライン対戦は、別のタブで待機中か対戦中です。終わってからお試しください。' : code === 'other_tab' ? '別のタブでオンライン対戦を開いているため、こちらは切断されました。' : code === 'unavailable' ? t('unavailable') : t('onlineOffline');
       G.online = { ...G.online, phase: code === 'unavailable' ? 'unavailable' : 'error', msg };

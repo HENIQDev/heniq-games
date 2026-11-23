@@ -179,7 +179,20 @@ const msg = (o) => JSON.stringify(o);
   const w1 = writes;
   lobby.close('w1'); lobby.open('w2'); lobby.message('w2', msg({ t: 'hello', pid: pid(81), nick: 'あ', v: 1 }));
   ok('同じ ID・同じ名前で再接続しても、保存（書き込み）しない', writes === w1 && w1 === 1, 'writes=' + writes);
+  // 他人の戦績は消せない：erase は、この接続が hello で示した ID だけが対象（メッセージに pid を入れても無視される）
+  lobby.open('w3'); lobby.message('w3', msg({ t: 'hello', pid: pid(82), nick: 'い', v: 1 }));
+  lobby.message('w3', msg({ t: 'erase', pid: pid(81) }));
+  ok('erase に他人の ID を書いても、自分の戦績だけが対象（他人のは消えない）', sent.w3.at(-1).t === 'erased' && store.get(pid(82)) === null && store.get(pid(81)) !== null);
+  lobby.open('w4'); lobby.message('w4', msg({ t: 'erase' }));
+  ok('hello の前（ID を示す前）の erase は無視される', !sent.w4 && store.get(pid(81)) !== null);
   lobby.message('w2', msg({ t: 'erase' }));
   ok('自分の戦績をサーバーから削除できる', sent.w2.at(-1).t === 'erased' && store.get(pid(81)) === null);
+  // 待機中・対戦中は削除できない（対戦の途中で消されて結果が失われるのを防ぐ）
+  lobby.open('w5'); lobby.message('w5', msg({ t: 'hello', pid: pid(83), nick: 'う', v: 1 }));
+  clock += 2000; lobby.message('w5', msg({ t: 'find', char: 'ojisan' })); clock += 11000;
+  lobby.message('w5', msg({ t: 'erase' }));
+  ok('待機中は戦績を削除できない', sent.w5.at(-1).t === 'error' && sent.w5.at(-1).code === 'erase_busy' && store.get(pid(83)) !== null);
+  clock += 11000; lobby.message('w3', msg({ t: 'erase' })); const n3 = sent.w3.length; clock += 1000; lobby.message('w3', msg({ t: 'erase' }));
+  ok('削除は 10 秒に 1 回まで', sent.w3.length === n3);
 }
 return { pass: results.filter((r) => r.ok).length, fail: results.filter((r) => !r.ok), total: results.length };

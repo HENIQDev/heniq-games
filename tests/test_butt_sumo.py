@@ -155,6 +155,27 @@ class Build(unittest.TestCase):
             self.assertNotIn("sendBeacon", s)
             self.assertNotIn("eval(", s)
 
+    def test_browser_storage_follows_rule(self):
+        """ブラウザへの情報保存ルール：保存するキーは決まったものだけ。Cookie・sessionStorage・IndexedDB は使わない。秘密の値は保存しない。保存目的・期間・削除方法を申告している"""
+        import re
+        keys = set()
+        for f in list((GAME / "play").rglob("*.js")) + [ROOT / "platform" / "core" / "storage.js", ROOT / "platform" / "core" / "audio.js"]:
+            s = f.read_text(encoding="utf-8")
+            for bad in ("sessionStorage", "indexedDB", "document.cookie", "caches.open", "serviceWorker"):
+                self.assertNotIn(bad, s, "%s に %s" % (f.name, bad))
+        save = (GAME / "play" / "save.js").read_text(encoding="utf-8")
+        keys.update(re.findall(r"(?:KEY|PID_KEY) = '([^']+)'", save))
+        self.assertEqual(keys, {"heniq.games.butt-sumo.save", "heniq.games.butt-sumo.device"})
+        for word in ("password", "apikey", "secret", "privateKey", "accessToken", "Authorization"):
+            for f in (GAME / "play").rglob("*.js"):
+                self.assertNotIn(word.lower(), f.read_text(encoding="utf-8").lower().replace("secrets", ""), "%s に %s" % (f.name, word))
+        decl = " ".join(self.meta["data"]["local_storage"])
+        for must in ("目的", "保存期間", "削除方法", "匿名", "個人情報ではなく", "復元できません"):
+            self.assertIn(must, decl)
+        net = " ".join(self.meta["data"]["network"])
+        for must in ("保存期間", "削除", "メールアドレス"):
+            self.assertIn(must, net)
+
     def test_jpegs_have_no_metadata(self):
         for f in (GAME / "store" / "art").glob("*.jpg"):
             b = f.read_bytes()
@@ -332,6 +353,20 @@ class Browser(unittest.TestCase):
         b.eval("document.querySelector('.btn.armed').click(); 1"); time.sleep(0.3)
         self.assertEqual(self.ev(b, "__bs.G.save.cleared"), 0)
         self.assertEqual(b.eval("window.__errs.join('|')"), "")
+
+    def test_actual_browser_storage_contents(self):
+        """実際に遊んだあとの localStorage の中身：決まったキーだけで、個人情報や秘密らしい値がない。匿名 ID はランダムな 32 桁の 16 進数"""
+        import re
+        b = self.page()
+        b.eval("__bs.G.save.settings.nick='テスト'; __bs.G.save.cleared=5; __bs.G.persist(); __bs.G.audio.setMuted(true); 1")
+        b.eval("(()=>{const a=new Uint8Array(16);crypto.getRandomValues(a);localStorage.setItem('heniq.games.butt-sumo.device',[...a].map(x=>x.toString(16).padStart(2,'0')).join(''));})(); 1")
+        d = self.ev(b, "Object.fromEntries(Object.keys(localStorage).map(k=>[k,localStorage.getItem(k)]))")
+        self.assertTrue(set(d) <= {"heniq.games.butt-sumo.save", "heniq.games.butt-sumo.device", "heniq.games.mute"}, set(d))
+        self.assertRegex(d["heniq.games.butt-sumo.device"], r"^[0-9a-f]{32}$")
+        save = json.loads(d["heniq.games.butt-sumo.save"])
+        self.assertEqual(set(save), {"v", "cleared", "best", "char", "seenUnlocks", "settings", "stats", "online"})
+        self.assertEqual(self.ev(b, "document.cookie"), "")
+        self.assertEqual(self.ev(b, "sessionStorage.length"), 0)
 
     def test_autopilot_battles_long_run(self):
         """AI が自分を操作して、連続で試合する（長時間プレイ）。エラー・描画の破綻・メモリの急増がないこと"""

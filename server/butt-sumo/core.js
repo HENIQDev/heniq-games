@@ -179,7 +179,16 @@ export class LobbyCore {
     if (c.state === 'new') return;                          // hello の前は何も受け付けない
     if (m.t === 'find') return this.find(c, m);
     if (m.t === 'cancel') { this.queue = this.queue.filter((q) => q.cid !== cid); c.state = 'ready'; this.save(cid); return this.o.send(cid, { t: 'canceled' }); }
-    if (m.t === 'erase') { this.store.delete(c.pid); return this.o.send(cid, { t: 'erased' }); }       // 自分の戦績をサーバーから削除する
+    if (m.t === 'erase') {
+      // 自分の戦績の削除：この接続が hello で示した ID の記録だけが対象（メッセージで別の ID は指定できない）。待機中・対戦中は拒否。10 秒に 1 回まで
+      const now = this.o.now();
+      if (c.state === 'queued' || (c.state === 'matched' && now - (c.matchedAt || 0) < 150000)) return this.o.send(cid, { t: 'error', code: 'erase_busy' });
+      if (now - (c.lastErase || 0) < 10000) return;
+      c.lastErase = now;
+      this.queue = this.queue.filter((q) => q.cid !== cid);
+      this.store.delete(c.pid);
+      return this.o.send(cid, { t: 'erased' });
+    }
     if (m.t === 'rank') return this.rank(c);
     if (m.t === 'nick') { c.nick = cleanNick(m.nick); const p = this.store.get(c.pid); if (p && p.nick !== c.nick) { p.nick = c.nick; this.store.put(p); } this.save(cid); }
   }
