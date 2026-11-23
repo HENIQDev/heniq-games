@@ -4,7 +4,7 @@ import { PROTO } from './proto.js';
 export function createNet(opts) {
   // opts: { url, pid, nick, handlers }
   const h = opts.handlers || {};
-  let lobby = null, room = null, state = 'offline', roomInfo = null, closed = false, retries = 0, rtt = 0, pingTimer = 0, pingN = 0, pingSent = new Map();
+  let lobby = null, room = null, lastRoomAt = 0, watchTimer = 0, state = 'offline', roomInfo = null, closed = false, retries = 0, rtt = 0, pingTimer = 0, pingN = 0, pingSent = new Map();
   const emit = (name, ...a) => { try { if (h[name]) h[name](...a); } catch (e) { /* UI 側の例外で通信を止めない */ } };
   const setState = (s) => { if (state !== s) { state = s; emit('state', s); } };
   const jsonOf = (ev) => { try { return JSON.parse(ev.data); } catch (e) { return null; } };
@@ -61,16 +61,23 @@ export function createNet(opts) {
     joinRoom() {
       if (!roomInfo) return;
       retries = 0;
+      // 通信が止まったとき（接続は開いたままに見えるが、状態が来ない）：3 秒で切れたとみなして再接続する
+      lastRoomAt = 0; clearInterval(watchTimer);
+      watchTimer = setInterval(() => {
+        if (room && room.readyState === 1 && !closed && state === 'inmatch' && lastRoomAt && performance.now() - lastRoomAt > 3000) { const w = room; room = null; try { w.close(); } catch (e) { /* ok */ } tryAgain(); }
+        else if (room && room.readyState >= 2 && !closed && (state === 'inmatch' || state === 'matched')) { room = null; tryAgain(); }       // 閉じる握手が返らず、CLOSING のままのとき
+      }, 1000);
       const open = () => {
         let ws;
         try { ws = new WebSocket(opts.url.replace(/\/$/, '') + '/room/' + roomInfo.room); } catch (e) { return tryAgain(); }
         room = ws;
         ws.onopen = () => { send(ws, { t: 'join', tok: roomInfo.tok }); retries = 0; };
         ws.onmessage = (ev) => {
+          lastRoomAt = performance.now();
           const m = jsonOf(ev); if (!m) return;
           if (m.t === 's') emit('snap', m, performance.now());
           else if (m.t === 'start') { setState('inmatch'); emit('start', m); }
-          else if (m.t === 'end') { emit('end', m); closed = true; }
+          else if (m.t === 'end') { emit('end', m); closed = true; clearInterval(watchTimer); }
           else if (m.t === 'opp') emit('opp', m);
           else if (m.t === 'pong') onPong(m);
           else if (m.t === 'error') { emit('error', m.code); }
@@ -89,8 +96,8 @@ export function createNet(opts) {
     sendInput(mx, my, b) { return send(room, { t: 'in', mx: Math.round(mx * 100) / 100, my: Math.round(my * 100) / 100, b }); },
     debugDropRoom() { if (room) try { room.close(); } catch (e) { /* ok */ } },
     get inRoom() { return !!room && room.readyState === 1; },
-    leaveRoom() { closed = true; const r = room; room = null; if (r) try { r.close(); } catch (e) { /* ok */ } roomInfo = null; setState(lobby ? 'ready' : 'offline'); },
-    close() { closed = true; clearInterval(pingTimer); for (const w of [lobby, room]) if (w) try { w.close(); } catch (e) { /* ok */ } lobby = room = null; roomInfo = null; setState('offline'); },
+    leaveRoom() { closed = true; clearInterval(watchTimer); const r = room; room = null; if (r) try { r.close(); } catch (e) { /* ok */ } roomInfo = null; setState(lobby ? 'ready' : 'offline'); },
+    close() { closed = true; clearInterval(pingTimer); clearInterval(watchTimer); for (const w of [lobby, room]) if (w) try { w.close(); } catch (e) { /* ok */ } lobby = room = null; roomInfo = null; setState('offline'); },
   };
   return api;
 }

@@ -87,4 +87,5 @@ HENIQ の知的財産権・著作権管理ルールに基づく台帳。**ゲー
 | キービジュアル・共有用画像・カード画像 | `store/art/hero.jpg`・`og.jpg`・`card.jpg` | 上の撮影画面に、題名の文字（ヒラギノ丸ゴ ProN）を重ねて Chrome で書き出し（`docs/art-src/compose.py`） | 自作（フォントは要判断） | 2026-11-23 |
 | 詳細ページの配色・装飾 | `store/theme.css` | HENIQ が作成（このゲーム独自のデザイン） | 自作 | 2026-11-23 |
 | 参考ゲーム（お尻・相撲系の対戦ゲーム全般） | — | 参照していない（今回の指示に具体的な参考ゲームの指定はなく、仕組みも名前・見た目も独自に設計）。 | — | 2026-11-23 |
-| 外部素材・外部コード・外部ライブラリ | なし | — | — | 2026-11-23 |
+| 外部素材・外部コード・外部ライブラリ | なし（ゲームに同梱されるものはすべて自作） | — | — | 2026-11-23 |
+| 開発・配備ツール：Node.js v24（nodejs.org の公式配布）と wrangler 4.166.0（Cloudflare 公式の CLI。npm で `server/butt-sumo` に版を固定） | `server/butt-sumo/package.json`・`package-lock.json`（`node_modules` は Git に含めない） | オンライン対戦サーバーを Cloudflare にデプロイするためだけに使用。**成果物（ゲーム・サーバーのコード）には含まれない**（Worker は wrangler が自作コードをまとめるだけ） | Node.js：MIT 等／wrangler：MIT または Apache-2.0（公式リポジトリの表記） | 2026-11-23 |

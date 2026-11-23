@@ -141,3 +141,8 @@
 - 修正：解放演出の 3D が出ない（High）／画面ゆれ設定の未配線とゆれの大きさ／入力の取りこぼし（先行入力 0.2 秒）／ポーズ復帰のキー／二重マッチングと対戦終了の解除／無効試合のレート表示／iPhone のズーム・長押し抑止／カメラ（寄り・横向きタッチ）／ボスの強さの偏り ほか。
 - テスト：全体 104 件 OK（監査前 78 件 → 追加 26 件。約 19 分）。追加：`tests/test_audit.py`（実プレイ）・`tests/test_online_audit.py`（オンラインの総合 4 件）・`char_report`／`stage_report`（個性・帯別難易度）・`server_core` の総合検証（60 項目）・`sim_rules`（39 項目）。
 - 監査の修正と追加テストは、オーナーの承認を得てローカルコミット済み（push・Cloudflare のデプロイは未実施）。
+
+## 2026-11-23（公開）BUTT SUMO を正式公開
+- Node.js v24.22.3（公式配布を `~/Documents/HENIQ/DevEnv/node` に展開）と wrangler 4.166.0（`server/butt-sumo` に固定）を導入（オーナーの承認）。`wrangler login` はオーナーが承認。
+- オンライン対戦サーバーを Cloudflare に配備：`https://heniq-butt-sumo.heniq-dev.workers.dev`。**本番で、2 つの独立した Chrome が対戦**（マッチング・勝敗・レート・保存・再接続・不戦敗：19 件すべて成功）。本番で見つけた不具合：閉じる握手が返らず、クライアントが再接続しない（サーバーで握手を返す＋クライアントに 3 秒の通信停止監視を追加して修正）。
+- `config.js` の接続先・`game.json`（published・公開日 2026-11-23・network_hosts）・ストアの文面を更新。`tools/prod_check.py`（本番の確認と後始末）を追加。テスト 104 件 OK。

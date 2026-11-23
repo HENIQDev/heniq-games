@@ -106,7 +106,8 @@ class Build(unittest.TestCase):
         cls.meta = json.loads((GAME / "game.json").read_text(encoding="utf-8"))
 
     def test_catalog_and_files(self):
-        self.assertEqual(self.meta["status"], "draft")          # 公開は承認後
+        self.assertEqual(self.meta["status"], "published")      # 2026-11-23 に、オーナーの承認を得て正式公開
+        self.assertEqual(self.meta["release_date"], "2026-11-23"); self.assertFalse(self.meta.get("release_label"))
         for f in ("index.html", "main.js", "sim.js", "chars.js", "stages.js", "ai.js", "net.js", "proto.js", "gl/gfx.js", "gl/models.js", "butt.css"):
             self.assertTrue((self.out / "butt-sumo" / f).exists(), f)
         for f in ("about/index.html", "about/art/hero.jpg", "about/art/og.jpg", "about/art/card.jpg", "about/theme.css"):
@@ -199,7 +200,7 @@ class Browser(unittest.TestCase):
         build.build(release=False, out=cls.dist)
         cls.srv = http.server.ThreadingHTTPServer(("127.0.0.1", 0), functools.partial(serve.Handler, directory=str(cls.dist)))
         threading.Thread(target=cls.srv.serve_forever, daemon=True).start()
-        cls.url = "http://127.0.0.1:%d/butt-sumo/?debug=1" % cls.srv.server_address[1]
+        cls.url = "http://127.0.0.1:%d/butt-sumo/?debug=1&offline=1" % cls.srv.server_address[1]      # 検証は、本番のサーバーにつながない
 
     @classmethod
     def tearDownClass(cls):

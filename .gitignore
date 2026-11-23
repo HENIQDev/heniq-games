@@ -3,3 +3,5 @@ dist/
 __pycache__/
 *.pyc
 tests/_out/
+node_modules/
+.wrangler/

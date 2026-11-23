@@ -20,7 +20,7 @@ class AuditBase(unittest.TestCase):
         cls.srv = http.server.ThreadingHTTPServer(("127.0.0.1", 0), functools.partial(serve.Handler, directory=str(cls.dist)))
         threading.Thread(target=cls.srv.serve_forever, daemon=True).start()
         cls.base = "http://127.0.0.1:%d" % cls.srv.server_address[1]
-        cls.url = cls.base + "/butt-sumo/?debug=1"
+        cls.url = cls.base + "/butt-sumo/?debug=1&offline=1"      # 検証は、本番のサーバーにつながない
 
     @classmethod
     def tearDownClass(cls):
@@ -457,14 +457,24 @@ class HenIQGamesIntegration(AuditBase):
         # 存在しない URL は 404
         nf = self.page(url=self.base + "/butt-sumo/nope/")
         self.assertIn("見つかりません", nf.eval("document.body.innerText") or "見つかりません") if False else None
-        # リリースビルドには入らない（draft）。公開済みのゲームだけ
+        # 正式公開：リリースビルドに入る。公開済みの 2 本だけで、下書きのゲームは入らない。他のゲームの CSP は広がらない
         out = ROOT / "tests" / "_out" / "audit_release"
         ids = build.build(release=True, out=out)
-        self.assertNotIn("butt-sumo", ids); self.assertFalse((out / "butt-sumo").exists())
+        self.assertEqual(sorted(ids), ["butt-sumo", "crowd-sprint-3d"])
+        self.assertTrue((out / "butt-sumo" / "main.js").exists())
+        for other in ("ball-dodge", "crowd-sprint", "stone-dash"):
+            self.assertFalse((out / other).exists(), other)
         feed = json.loads((out / "games.json").read_text(encoding="utf-8"))
-        self.assertNotIn("butt-sumo", json.dumps(feed))
-        self.assertNotIn("butt-sumo", (out / "index.html").read_text(encoding="utf-8"))
-        self.assertEqual(json.loads((ROOT / "games" / "butt-sumo" / "game.json").read_text(encoding="utf-8"))["status"], "draft")
+        self.assertIn("butt-sumo", json.dumps(feed)); self.assertIn("2026-11-23", json.dumps(feed))
+        self.assertIn("BUTT SUMO", (out / "index.html").read_text(encoding="utf-8"))
+        headers = (out / "_headers").read_text(encoding="utf-8")
+        self.assertEqual(headers.count("/butt-sumo/*"), 1); self.assertNotIn("/crowd-sprint-3d/*", headers)
+        self.assertIn("wss://heniq-butt-sumo.heniq-dev.workers.dev", headers)
+        self.assertEqual(headers.count("wss://"), 1, "他のゲームにまで通信先が広がっている")
+        self.assertIn('name="robots" content="noindex"', (out / "index.html").read_text(encoding="utf-8"))      # 検索エンジン設定は変えない
+        self.assertIn("Allow: /", (out / "robots.txt").read_text(encoding="utf-8"))
+        self.assertEqual(json.loads((ROOT / "catalog" / "site.json").read_text(encoding="utf-8"))["indexing"], False)
+        self.assertFalse((out / "sitemap.xml").exists())
 
 
 if __name__ == "__main__":

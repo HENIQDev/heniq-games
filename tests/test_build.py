@@ -231,7 +231,7 @@ class StoreBuildTest(unittest.TestCase):
     # ---- 公開の関門 ----
     def test_release_build_has_no_drafts(self):
         ids = build.build(release=True, out=tempfile.mkdtemp())
-        self.assertEqual(ids, ["crowd-sprint-3d"])  # 公開済みは、承認された 1 本だけ。draft は含まれない
+        self.assertEqual(sorted(ids), ["butt-sumo", "crowd-sprint-3d"])  # 公開済みは、承認された 2 本だけ。draft は含まれない
 
     def test_release_blockers(self):
         site = catalog.load_site()
@@ -258,13 +258,14 @@ class StoreBuildTest(unittest.TestCase):
     def test_release_build_strips_dev_files_and_publishes_only_finished(self):
         out = Path(tempfile.mkdtemp()) / "dist"
         ids = build.build(release=True, out=out)
-        self.assertEqual(ids, ["crowd-sprint-3d"])                       # 公開するのは、承認された 1 本だけ
+        self.assertEqual(sorted(ids), ["butt-sumo", "crowd-sprint-3d"])  # 公開するのは、承認された 2 本だけ
         self.assertFalse((out / "crowd-sprint-3d" / "bot.js").exists(), "検証用の bot.js が公開物に入っている")
         for other in ("ball-dodge", "crowd-sprint", "stone-dash"):
             self.assertFalse((out / other).exists(), other + " が公開物に入っている")
         priv = (out / "privacy" / "index.html").read_text(encoding="utf-8")
         self.assertNotIn("確認前の下書き", priv)
         self.assertIn("CROWD SPRINT", priv)
+        self.assertIn("BUTT SUMO", priv)
         self.assertNotIn("BALL DODGE", priv)
         index = (out / "index.html").read_text(encoding="utf-8")
         self.assertIn("テスト公開中", index)
@@ -282,7 +283,7 @@ class StoreBuildTest(unittest.TestCase):
         site = catalog.load_site()
         games = catalog.load_games(catalog.load_genres())
         pub = [g for g in games if g["status"] == "published"]
-        self.assertEqual([g["id"] for g in pub], ["crowd-sprint-3d"])
+        self.assertEqual(sorted(g["id"] for g in pub), ["butt-sumo", "crowd-sprint-3d"])
         self.assertEqual(catalog.release_blockers(games, site), [])
         self.assertTrue(site["privacy_finalized"])
 

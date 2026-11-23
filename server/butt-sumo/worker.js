@@ -108,7 +108,11 @@ export class Lobby extends DurableObject {
     this.core.message(cid, msg);
     await this.ensureAlarm();
   }
-  async webSocketClose(ws) { const cid = this.cidOf(ws); if (cid) { this.core.close(cid); this.socks.delete(cid); } }
+  async webSocketClose(ws, code) {
+    const cid = this.cidOf(ws);
+    if (cid) { this.core.close(cid); this.socks.delete(cid); }
+    try { ws.close(code >= 1000 && code <= 4999 && code !== 1005 && code !== 1006 ? code : 1000, 'bye'); } catch (e) { /* 既に閉じている */ }      // 閉じる握手を完了させる（返さないと、相手が CLOSING のまま待つ）
+  }
   async webSocketError(ws) { return this.webSocketClose(ws); }
   // マッチングの定期処理：待機中の人がいる間だけ、5 秒ごとの alarm で動かす（誰も待っていなければ、何も動かない＝眠る）
   async ensureAlarm() {
@@ -167,7 +171,8 @@ export class Room {
       else if (m.t === 'ping') server.send(text({ t: 'pong', c: typeof m.c === 'number' ? m.c : 0 }));
     });
     const gone = () => { if (slot >= 0 && this.socks[slot] === server) { this.socks[slot] = null; if (this.core) this.core.detach(slot); } };
-    server.addEventListener('close', gone); server.addEventListener('error', gone);
+    server.addEventListener('close', (ev) => { try { server.close(ev.code >= 1000 && ev.code <= 4999 && ev.code !== 1005 && ev.code !== 1006 ? ev.code : 1000, 'bye'); } catch (e) { /* 既に閉じている */ } gone(); });      // 閉じる握手を完了させる
+    server.addEventListener('error', gone);
     return new Response(null, { status: 101, webSocket: client });
   }
 }

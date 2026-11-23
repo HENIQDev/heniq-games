@@ -20,7 +20,8 @@ window.addEventListener('error', (e) => window.__errs.push(String(e.message)));
 window.addEventListener('unhandledrejection', (e) => window.__errs.push(String(e.reason)));
 const q = new URLSearchParams(location.search);
 const isLocalHost = /^(localhost|127\.0\.0\.1|\[::1\]|.*\.localhost|.*\.test)$/.test(location.hostname);
-const serverUrl = (isLocalHost && q.get('server')) || SERVER;
+// 接続先：本番は config.js の SERVER。ローカル（localhost）の検証だけ、?server=（別のサーバー）や ?offline=1（通信しない。「準備中」の表示の確認用）を使える
+const serverUrl = isLocalHost && q.get('offline') ? '' : (isLocalHost && q.get('server')) || SERVER;
 
 const app = document.getElementById('app');
 const canvas = h('canvas', 'gl');

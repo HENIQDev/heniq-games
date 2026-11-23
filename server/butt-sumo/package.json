@@ -1,0 +1,17 @@
+{
+  "name": "heniq-butt-sumo-server",
+  "private": true,
+  "version": "1.0.0",
+  "description": "BUTT SUMO オンライン対戦サーバー（Cloudflare Workers + Durable Objects）",
+  "type": "module",
+  "scripts": {
+    "deploy": "wrangler deploy",
+    "dev": "wrangler dev"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "devDependencies": {
+    "wrangler": "4.166.0"
+  }
+}
