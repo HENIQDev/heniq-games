@@ -1,0 +1,43 @@
+/* BUTT SUMO の詳細ページ：コミック調のポップなバカゲーの世界。紫の地に、ピンクと黄色の太い文字・ハーフトーンの水玉・少し傾いたカード。
+   見た目はこのファイルだけで決める（ほかのゲームの詳細ページとは、共通のデザインに合わせない）。 */
+body.about {
+  background-color: #1a0f2e;
+  background-image: radial-gradient(rgb(255 255 255 / 0.07) 2px, transparent 2.5px), linear-gradient(180deg, #2a1550 0%, #1a0f2e 55%, #12081f 100%);
+  background-size: 22px 22px, auto;
+  background-attachment: fixed;
+  color: var(--fg);
+  font-family: "Hiragino Maru Gothic ProN", "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Noto Sans JP", "Yu Gothic UI", sans-serif;
+  font-weight: 800;
+}
+.hg-bar { --bar-bg: #12081f; --bar-fg: #fff; border-bottom: 4px solid var(--accent2); }
+main { display: flex; flex-direction: column; padding-bottom: 28px; }
+.about-visual { order: -1; padding: 0; max-width: none; }
+.about-visual img { border: 0; border-bottom: 8px solid var(--accent); max-height: 62vh; object-fit: cover; width: 100%; }
+.about-hero { text-align: center; max-width: 920px; width: 100%; margin: -56px auto 0; padding: 0 20px 8px; position: relative; }
+.about-hero h1 { margin: 0; font-size: clamp(3rem, 14vw, 7.4rem); line-height: 0.95; font-weight: 900; color: var(--accent2); -webkit-text-stroke: 0.12em #12081f; paint-order: stroke fill; text-shadow: 0.06em 0.08em 0 #12081f; transform: rotate(-3deg); letter-spacing: 0.02em; }
+.about-hero .tagline { margin: 18px 0 24px; font-size: clamp(1.05rem, 3.4vw, 1.5rem); color: #fff; -webkit-text-stroke: 0.25em #12081f; paint-order: stroke fill; }
+.play-btn { display: inline-block; padding: 16px 52px; background: var(--accent); color: #12081f; font-size: 1.7rem; font-weight: 900; letter-spacing: 0.1em; text-decoration: none; border: 5px solid #12081f; border-radius: 22px; box-shadow: 0 8px 0 #12081f; transform: rotate(-1.5deg); transition: transform 0.1s; }
+.play-btn:hover, .play-btn:focus-visible { transform: translateY(-3px) rotate(1deg); outline: 4px solid #35d6ff; outline-offset: 3px; }
+.play-btn:active { transform: translateY(5px); box-shadow: 0 2px 0 #12081f; }
+.about-meta { max-width: 920px; margin: 22px auto 8px; padding: 0 20px; display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; list-style: none; }
+.about-meta li { padding: 6px 16px; background: #fff; color: #12081f; border: 3px solid #12081f; border-radius: 999px; font-size: 0.9rem; box-shadow: 0 3px 0 #12081f; }
+.about-meta li.is-test { background: var(--accent2); color: #fff; }
+.about-section { width: calc(100% - 32px); max-width: 920px; margin: 22px auto; padding: 22px 28px; background: rgb(255 255 255 / 0.09); border: 4px solid #12081f; border-radius: 24px; box-shadow: 0 8px 0 rgb(0 0 0 / 0.35); }
+.about-section:nth-of-type(odd) { transform: rotate(-0.4deg); }
+.about-section:nth-of-type(even) { transform: rotate(0.4deg); }
+.about-section h2 { margin: 0 0 12px; font-size: 1.7rem; font-weight: 900; color: var(--accent); -webkit-text-stroke: 0.14em #12081f; paint-order: stroke fill; letter-spacing: 0.06em; }
+.about-section p, .about-section li { line-height: 1.9; }
+.feature-list { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 16px; counter-reset: f; }
+.feature-list li { counter-increment: f; padding: 16px 18px 16px 64px; position: relative; background: #fff; color: #12081f; border: 4px solid #12081f; border-radius: 18px; box-shadow: 0 5px 0 #12081f; }
+.feature-list li::before { content: counter(f); position: absolute; left: 12px; top: 10px; width: 40px; height: 40px; border-radius: 50%; background: var(--accent2); color: #fff; border: 3px solid #12081f; display: flex; align-items: center; justify-content: center; font-size: 1.3rem; font-weight: 900; }
+.feature-list h3 { margin: 0 0 4px; color: #b3004f; font-size: 1.05rem; }
+.feature-list p { margin: 0; font-size: 0.92rem; }
+.shots { grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 18px; }
+.shots img { width: 100%; border: 4px solid #12081f; border-radius: 16px; box-shadow: 0 6px 0 var(--accent2); background: #000; }
+.shots img:nth-child(odd) { transform: rotate(-1deg); } .shots img:nth-child(even) { transform: rotate(1deg); }
+.controls th { color: var(--accent); }
+a { color: var(--accent); }
+@media (prefers-reduced-motion: no-preference) {
+  .play-btn { animation: boing 1.6s ease-in-out infinite; }
+  @keyframes boing { 0%, 100% { transform: rotate(-1.5deg) scale(1); } 50% { transform: rotate(-1.5deg) scale(1.05); } }
+}

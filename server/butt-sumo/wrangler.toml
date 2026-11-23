@@ -1,0 +1,21 @@
+# BUTT SUMO オンライン対戦サーバー（Cloudflare Workers の無料プラン + Durable Objects の SQLite 版）。
+# 公開手順は README.md。デプロイは「承認が必要な操作」なので、承認を得てから行う。
+name = "heniq-butt-sumo"
+main = "worker.js"
+compatibility_date = "2025-01-01"
+workers_dev = true
+
+[vars]
+ALLOWED_ORIGINS = "https://heniq-games.pages.dev"
+
+[[durable_objects.bindings]]
+name = "LOBBY"
+class_name = "Lobby"
+
+[[durable_objects.bindings]]
+name = "ROOM"
+class_name = "Room"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["Lobby", "Room"]

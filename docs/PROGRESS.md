@@ -118,3 +118,13 @@
 - 公式 HP：別クローンから `c3e223e`・`b4e5ffc` を main へ push（bb746e5→b4e5ffc、fast-forward）。Cloudflare の公開コミット＝GitHub main＝build-info.json（b4e5ffc）が一致。`/games`・`/games/`・`/games/crowd-sprint-3d(/)` は 302 で HENIQ GAMES へ。HP の既存ページは 200、sitemap に /games なし。元の `cms` の未コミット 3 ファイルは未接触。
 - heniq-games：公開中の内容は 240bfab と一致（画像の hash で確認）。90312e0・2acc1c0・ba45c61 は未反映。新規クローンで 240bfab〜ba45c61 の各コミットを `build.py --release`（Python 3.9）でビルド → すべて成功。コードの差分も小さく、Python 互換の問題なし → 原因はコードではなく Cloudflare 側（Git 連携・ビルド設定・ビルドログ）。ダッシュボードの確認が必要。
 - 117cbc4 は未 push（保留）。`indexing: false` は維持。
+
+## 2026-11-23 BUTT SUMO（games/butt-sumo）：実装〜公開準備（status: draft。未コミット・未 push）
+- **実装**：3D（raw WebGL2）の対戦ゲーム。10 体のキャラ（`play/gl/models.js`）・必殺技 8 種・CP 100 ステージ（ボス 10 体・テーマ 10 種・キャラ解放 8 体）・AI（行動パターンで難易度）・専用 UI（タイトル／メニュー／キャラ／ステージ／結果／解放演出／設定／遊び方／ランキング／オンライン）・合成音と BGM・PC（キーボード・パッド）とスマホ（仮想スティック＋ボタン）・保存（localStorage）。`sim.js` は 30 Hz の純粋なシミュレーションで、CP 戦もサーバーも同じものを実行。
+- **オンライン**：`server/butt-sumo/`（`core.js`＝通信に依存しないロジック・テスト済み／`worker.js`＝Cloudflare Workers + Durable Objects（SQLite）／`devhost.js`＋`tools/dev_hub.py`＝ローカル検証用）。サーバー権威・Elo・ランキング・切断／再接続／不戦敗・入力検証。**Cloudflare 上へは未デプロイ**（承認事項。Node/wrangler なし）。`play/config.js` の `SERVER` が空 = 「準備中」表示で通信しない。
+- **ビルドの追加**：`game.json` の `network_hosts` で、そのゲームのページだけ CSP の `connect-src` を広げる（`_headers` の `! Content-Security-Policy`）。公開の関門に「network_hosts があるのに data.network が空」を追加。
+- **テスト**：全体 73 件 OK（`python3 -m unittest discover -s tests`。うち BUTT SUMO：`tests/test_butt_sumo.py` 18 件・`tests/test_online.py` 2 件＝別々の 3 つの Chrome で実際に対戦／`tests/js/sim_rules.mjs` 31 項目・`server_core.mjs` 35 項目）。`tools/jsrun.py`（Node なしで JS を実行）を追加。
+- **実測**：ヘッドレス Chrome（このMac）で 60 fps（1280×720／390×844 dpr2／1920×1080 dpr2、20 秒ずつ）、JS の CPU 時間は約 0.4 ms／フレーム、本体 187 KB（圧縮で約 65 KB）。**iPhone 実機・GPU 時間は未計測。**
+- **見つかって直した不具合（テストで発見）**：ポーズから再開できない／「null」と表示される／縦向きのキャラ選択で 3D が隠れる／輪郭線の向き。
+- **未完了**：Cloudflare へのデプロイと本番での対戦確認／Lobby の Hibernation／端末 ID と HENIQ ルールの整合の判断／実機（iPhone・Android）／人間の実プレイでの調整／音の聴感確認。詳細は `games/butt-sumo/docs/RELEASE_CHECKLIST.md`・`ONLINE_DESIGN.md`。
+- **次回の再開**：①オーナーの判断（commit・Cloudflare 設定・端末 ID）②承認後：wrangler で Worker をデプロイ → `config.js`・`game.json` を更新 → 本番で 2 台対戦 → 実機確認 → `published`。

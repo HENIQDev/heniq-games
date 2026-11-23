@@ -127,6 +127,9 @@ def validate(meta, store, d, genre_ids):
         p.append("genre「%s」は catalog/genres.json にありません" % meta["genre"])
     if not isinstance(meta["tags"], list):
         p.append("tags は一覧")
+    for hst in meta.get("network_hosts") or []:
+        if not re.match(r"^wss://[a-z0-9][a-z0-9.-]*\.[a-z]{2,}$", str(hst)):
+            p.append("network_hosts は wss://ホスト名 の形式（%s）" % hst)
     if meta.get("release_date") and not DATE_RE.match(str(meta["release_date"])):
         p.append("release_date は YYYY-MM-DD")
     if meta["kind"] == "web":
@@ -201,6 +204,8 @@ def release_blockers(games, site):
             data = g["data"]
             if not all(k in data for k in ("local_storage", "cookies", "network")):
                 out.append("%s: data（保存・通信する情報の申告）が不完全です" % gid)
+            elif g.get("network_hosts") and not data["network"]:
+                out.append("%s: network_hosts があるのに、data.network（通信する情報の申告）が空です" % gid)
         else:
             if not g.get("app_store_url"):
                 out.append("%s: app_store_url が未設定です" % gid)

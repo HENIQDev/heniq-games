@@ -1,0 +1,7 @@
+<!doctype html><meta charset=utf-8><title>devhost</title>
+<script type="module">
+import { startDevHost } from '/server/butt-sumo/devhost.js';
+const u = new URLSearchParams(location.search).get('hub');
+window.host = startDevHost(u);
+window.ready = new Promise((r) => { window.host.ws.onopen = () => r(true); });
+</script>

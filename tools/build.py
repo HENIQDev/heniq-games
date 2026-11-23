@@ -38,13 +38,23 @@ HEADERS = """/*
 """
 
 
-def headers_text(indexing):
+CSP_BASE = "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; font-src 'self'; media-src 'self'; connect-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'"
+
+
+def headers_text(indexing, games=()):
     """_headers：全体のセキュリティヘッダー。非掲載中（indexing: false）は X-Robots-Tag: noindex も付ける。
     robots.txt では巡回を止めない（止めると noindex を読めず、URL だけが検索結果に載る場合があるため。公式 HP と同じ方針）。"""
     text = HEADERS.rstrip("\n") + "\n"
     if not indexing:
         text += "  X-Robots-Tag: noindex\n"
-    return text + "\n/build-info.json\n  Cache-Control: no-store\n"
+    text += "\n/build-info.json\n  Cache-Control: no-store\n"
+    # 外部のサーバーと通信するゲーム（game.json の network_hosts）だけ、そのゲームの URL で connect-src を広げる（ほかのゲームは広げない）
+    for g in games:
+        hosts = g.get("network_hosts") or []
+        if g["kind"] == "web" and hosts:
+            csp = CSP_BASE.replace("connect-src 'self'", "connect-src 'self' " + " ".join(hosts))
+            text += "\n/%s/*\n  ! Content-Security-Policy\n  Content-Security-Policy: %s\n" % (g["id"], csp)
+    return text
 
 
 def build_info(release, ids, indexing):
@@ -153,7 +163,7 @@ def build(release=False, out=None):
     write(dist / "privacy" / "index.html", render.privacy_page(games, genres, site))
     write(dist / "404.html", render.not_found_page(games, genres, site))
     write(dist / "games.json", render.feed(games, genres))
-    write(dist / "_headers", headers_text(site["indexing"]))
+    write(dist / "_headers", headers_text(site["indexing"], games))
     write(dist / "build-info.json", build_info(release, [g["id"] for g in games], site["indexing"]))
     if redirects:
         write(dist / "_redirects", "\n".join(redirects) + "\n")
