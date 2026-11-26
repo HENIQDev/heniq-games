@@ -146,3 +146,14 @@
 - Node.js v24.22.3（公式配布を `~/Documents/HENIQ/DevEnv/node` に展開）と wrangler 4.166.0（`server/butt-sumo` に固定）を導入（オーナーの承認）。`wrangler login` はオーナーが承認。
 - オンライン対戦サーバーを Cloudflare に配備：`https://heniq-butt-sumo.heniq-dev.workers.dev`。**本番で、2 つの独立した Chrome が対戦**（マッチング・勝敗・レート・保存・再接続・不戦敗：19 件すべて成功）。本番で見つけた不具合：閉じる握手が返らず、クライアントが再接続しない（サーバーで握手を返す＋クライアントに 3 秒の通信停止監視を追加して修正）。
 - `config.js` の接続先・`game.json`（published・公開日 2026-11-23・network_hosts）・ストアの文面を更新。`tools/prod_check.py`（本番の確認と後始末）を追加。テスト 104 件 OK。
+
+## 2026-11-26 STONE DASH!（iOS）の紹介ページとカード（未コミット・status は draft のまま）
+- 依頼（ユーザー）：公式サイトの Games に STONE DASH! を追加し、専用の紹介ページへ。公式サイトの GAMES は 11-22 に HENIQ GAMES へ一本化済み（HP の `/games/` は 302 でここへ）なので、**HENIQ GAMES 側に実装**（HP は変更していない）。
+- `games/stone-dash/game.json`：tagline「迫るゾンビから逃げ切れ。」・summary・tags・release_date 2026-11-24（App Store のバージョン履歴の 1.0）・app_store_url `https://apps.apple.com/jp/app/id6834415017`・操作・play_time。
+- `store/store.json`：黒基調の色（コントラストは検査を通過）・遊び方 4・特徴 5（3 ボタン／足場を見極める／ゾンビの群れ／世界ランキング／ニックネームだけで参加）・世界観・スクリーンショット 7・画像。`store/theme.css`：黒・細い線・英字の小見出し・夕暮れの橙のアクセント（PC・スマホ）。
+- 画像 `store/art/`（計 1,284KB／予算 1,500KB、メタデータ除去）：App Store の掲載画像 6 枚（日本語）とランキングの画面（Build 2、開発環境のテストデータ）を縮小。hero・og・card は実際のゲーム画面 3 枚とアプリのアイコンを黒の地に並べて題名を描いた（CoreGraphics）。権利は `ASSET_LICENSES.md` の `## stone-dash`。
+- 導線の変更（`tools/render.py`）：iOS のカードの本体も詳細ページへ。App Store の URL があれば、カードの下に「App Store」のボタン（以前はカードが直接 App Store へ）。`docs/GAME_PIPELINE.md` とテスト（`test_card_links`・`test_ios_card_links_to_about_and_app_store`・`test_release_blockers` は素材を外した写しで確認）を更新。
+- 確認：テスト 104 件成功。`stone-dash` を published にした場合の公開の関門は 0 件。PC 1440・スマホ 390／320 で横はみ出しなし（Chrome の端末エミュレーション）。サイトは noindex のため canonical は出ない（サイト全体の方針どおり）。
+- 未実施（承認待ち）：`status: published` への切り替え・commit・push（＝公開）。英語版は HENIQ GAMES が日本語だけの構成のため作っていない。
+- 2026-11-26（公開前の修正）：①ランキングの画面（開発サーバーのテスト用の名前が写っていた）は、一般向けの適切な画像が無いので掲載から外した。②画像の文字のフォント：macOS の使用許諾契約の E 項は「実行中の表示と印刷」だけを明記し、商用サイトの画像への利用が明確でない → 合成する文字は **Inter・Noto Sans CJK（SIL OFL 1.1、Blender 同梱のファイル）** に変更。スクリーンショットは、見出しを合成した App Store の画像をやめて、実際のゲームの画面（切り抜き・縮小だけ）6 枚に差し替え（結果の画面は「通信できませんでした」が写るので、実績の画面に）。画像の合計 956KB。`ASSET_LICENSES.md` を更新。残る点：ゲームの画面の中の文字は、アプリが iOS の標準フォントで表示した物（App Store の画像と同じ）。
+- 2026-11-26（公開）：オーナーの最終確認を受けて `stone-dash` を `published` に（他のゲームの状態は変えていない）。公開済みの一覧を前提にしたテスト 4 か所（`test_build.py` 3・`test_audit.py` 1）を 3 本に更新。テスト 104 件成功・リリースビルド 3 本（stone-dash・butt-sumo・crowd-sprint-3d）・公開の関門 0 件。

@@ -1,0 +1,75 @@
+/* STONE DASH! の詳細ページ：黒を基調にした、近未来的でミニマルなデザイン（HENIQ のブランド）。
+   アクセントは、ゲームの世界の「夕暮れの橙」と、ボタンの青紫。細い線・広い余白・大きな英字の見出し。
+   見た目はこのファイルだけで決める。外部のフォント・画像は使わない（OS 標準のフォント）。 */
+body.about {
+  background-color: var(--bg);
+  background-image:
+    radial-gradient(1200px 520px at 85% -10%, rgb(255 140 60 / 0.16), transparent 70%),
+    linear-gradient(rgb(255 255 255 / 0.035) 1px, transparent 1px),
+    linear-gradient(90deg, rgb(255 255 255 / 0.035) 1px, transparent 1px);
+  background-size: auto, 48px 48px, 48px 48px;
+  color: var(--fg);
+  font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Noto Sans JP", "Yu Gothic UI", sans-serif;
+  line-height: 1.8;
+  letter-spacing: 0.02em;
+}
+.hg-bar { --bar-bg: rgb(11 12 16 / 0.85); --bar-fg: #c9ced8; border-bottom: 1px solid rgb(255 255 255 / 0.08); letter-spacing: 0.12em; font-size: 12px; text-transform: uppercase; }
+.hg-bar a { text-decoration: none; }
+.hg-bar a:hover, .hg-bar a:focus-visible { color: var(--accent); }
+
+main { display: flex; flex-direction: column; padding-bottom: 40px; }
+
+/* ファーストビュー：キービジュアルを先頭に、その下に題名とダウンロード */
+.about-visual { order: -1; max-width: 1200px; width: 100%; padding: 28px 20px 0; }
+.about-visual img { border-radius: 18px; border: 1px solid rgb(255 255 255 / 0.12); box-shadow: 0 30px 80px rgb(0 0 0 / 0.55), 0 0 0 1px rgb(255 169 77 / 0.08); }
+.about-hero { max-width: 1200px; width: 100%; margin: 0 auto; padding: 36px 20px 8px; text-align: left; }
+.about-hero h1 { margin: 0; font-size: clamp(2.6rem, 9vw, 5.6rem); line-height: 1; font-weight: 900; letter-spacing: 0.01em; }
+.about-hero h1::after { content: ""; display: block; width: 72px; height: 3px; margin-top: 18px; background: linear-gradient(90deg, var(--accent), var(--accent2)); }
+.about-hero .tagline { margin: 18px 0 26px; font-size: clamp(1.15rem, 3.6vw, 1.6rem); font-weight: 700; color: var(--accent); }
+.play-btn { display: inline-flex; align-items: center; gap: 10px; padding: 14px 30px; background: var(--fg); color: var(--bg); font-weight: 800; font-size: 1.05rem; letter-spacing: 0.06em; text-decoration: none; border-radius: 999px; border: 1px solid var(--fg); transition: background 0.15s, color 0.15s, transform 0.15s; }
+.play-btn::before { content: ""; width: 0; height: 0; border-left: 9px solid currentColor; border-top: 6px solid transparent; border-bottom: 6px solid transparent; }
+.play-btn:hover, .play-btn:focus-visible { background: var(--accent); border-color: var(--accent); color: #111; transform: translateY(-1px); outline: none; }
+.play-btn:focus-visible { box-shadow: 0 0 0 3px rgb(143 156 255 / 0.6); }
+
+.about-meta { max-width: 1200px; width: 100%; margin: 18px auto 6px; padding: 0 20px; display: flex; flex-wrap: wrap; gap: 8px; list-style: none; }
+.about-meta li { padding: 4px 12px; border: 1px solid rgb(255 255 255 / 0.16); border-radius: 999px; font-size: 0.8rem; color: #c9ced8; letter-spacing: 0.06em; }
+
+/* 各セクション：細い線の枠と、英字の小さな見出し */
+.about-section { width: calc(100% - 40px); max-width: 1160px; margin: 26px auto 0; padding: 28px 28px 26px; background: rgb(255 255 255 / 0.025); border: 1px solid rgb(255 255 255 / 0.09); border-radius: 16px; }
+.about-section h2 { margin: 0 0 16px; font-size: 1.35rem; font-weight: 800; letter-spacing: 0.08em; }
+.about-section h2::before { display: block; margin-bottom: 4px; font-size: 0.7rem; font-weight: 700; letter-spacing: 0.32em; color: var(--accent2); }
+#how h2::before { content: "HOW TO PLAY"; }
+#features h2::before { content: "FEATURES"; }
+#world h2::before { content: "STORY"; }
+#shots h2::before { content: "SCREENSHOTS"; }
+#controls h2::before { content: "CONTROLS"; }
+.about-section p { margin: 0 0 10px; color: #dfe3ea; }
+.about-section p:last-child { margin-bottom: 0; }
+
+.feature-list { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 14px; counter-reset: f; }
+.feature-list li { counter-increment: f; padding: 18px 18px 16px; border: 1px solid rgb(255 255 255 / 0.1); border-radius: 14px; background: linear-gradient(180deg, rgb(255 255 255 / 0.04), rgb(255 255 255 / 0.01)); }
+.feature-list li::before { content: "0" counter(f); display: block; margin-bottom: 6px; font-size: 0.8rem; font-weight: 800; letter-spacing: 0.2em; color: var(--accent); }
+.feature-list h3 { margin: 0 0 6px; font-size: 1.05rem; }
+.feature-list p { margin: 0; font-size: 0.92rem; color: #c9ced8; line-height: 1.75; }
+
+#world p:first-of-type { font-size: 1.1rem; }
+
+/* スクリーンショット：縦長の iPhone の画面 */
+.shots { grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 14px; }
+.shots img { width: 100%; border-radius: 14px; border: 1px solid rgb(255 255 255 / 0.12); background: #000; }
+
+.controls th { color: var(--accent); font-weight: 700; padding-right: 18px; }
+a { color: var(--accent); }
+.hg-foot { border-top: 1px solid rgb(255 255 255 / 0.08); margin-top: 40px; color: #9aa1ad; letter-spacing: 0.06em; }
+.hg-foot a { text-decoration: none; }
+.hg-foot a:hover, .hg-foot a:focus-visible { color: var(--accent); }
+
+@media (max-width: 600px) {
+  .about-visual { padding: 16px 12px 0; }
+  .about-visual img { border-radius: 12px; }
+  .about-hero { padding: 26px 16px 4px; }
+  .about-meta { padding: 0 16px; }
+  .about-section { width: calc(100% - 24px); padding: 22px 18px; }
+  .shots { grid-template-columns: repeat(2, 1fr); gap: 10px; }
+  .play-btn { width: 100%; justify-content: center; }
+}

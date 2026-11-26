@@ -55,8 +55,9 @@ def head(title, css, root, site, description="", og_image=None, canonical=None, 
 def card(g, genres, root):
     store = g["_store"]
     images = store.get("images") or {}
-    href = "%s%s/about/" % (root, g["id"]) if g["kind"] == "web" else (g.get("app_store_url") or "%s%s/about/" % (root, g["id"]))
-    ext = ' rel="noopener"' if g["kind"] == "ios" and g.get("app_store_url") else ""
+    # カードの本体は、WEB・iOS とも詳細ページへ（2026-11-26：iOS も紹介ページを見てから App Store へ進めるように）
+    href = "%s%s/about/" % (root, g["id"])
+    ext = ""
     if "card" in images:
         art = '<img class="card-img" src="%s%s/about/art/%s" alt="" width="460" height="215" loading="lazy">' % (root, g["id"], e(images["card"]))
     else:
@@ -72,6 +73,8 @@ def card(g, genres, root):
     play = ""
     if g["kind"] == "web":
         play = '<a class="card-play" href="%s%s/">PLAY</a>' % (root, g["id"])
+    elif g.get("app_store_url"):
+        play = '<a class="card-play" href="%s" rel="noopener">App Store</a>' % e(g["app_store_url"])
     return (
         '<article class="card g-%s" data-genre="%s" data-kind="%s" data-title="%s">'
         '<a class="card-link" href="%s"%s>%s<h3>%s</h3><p>%s</p></a>'

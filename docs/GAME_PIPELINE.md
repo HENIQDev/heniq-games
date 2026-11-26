@@ -46,7 +46,7 @@ games/<id>/
 `status` を `published` にし、`catalog/site.json` の `indexing` を `true` にするのは、**公開の承認を受けてから**。そのあと `git push` → Cloudflare Pages（`heniq-games`）で自動デプロイ。公開後は、トップ・詳細・ゲーム本体・ヘッダー・robots を確認する。
 
 ## iOS ゲームの扱い
-`kind: ios`。`/<id>/` は `/<id>/about/` へ転送。カードと詳細ページの導線は、`app_store_url` が設定されていれば App Store、未設定なら詳細ページ（COMING SOON 表示）。ブラウザゲームには WEB、iOS には iOS のバッジが付く。
+`kind: ios`。`/<id>/` は `/<id>/about/` へ転送。カードの本体は詳細ページへ。`app_store_url` が設定されていれば、カードの下に「App Store」のボタン、詳細ページに「App Store で見る」。未設定なら詳細ページは COMING SOON 表示（2026-11-26 変更：以前はカードが直接 App Store へ）。ブラウザゲームには WEB、iOS には iOS のバッジが付く。
 
 ## 公式 HP との連携（H1。別作業・承認制）
 HP のデザインは変えない。HP の GAMES から HENIQ GAMES へ誘導する変更は、HP の未コミット変更とブランチの状態を保護したうえで、別作業として行う。それまで HP は一切触らない。

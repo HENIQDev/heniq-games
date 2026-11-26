@@ -457,12 +457,12 @@ class HenIQGamesIntegration(AuditBase):
         # 存在しない URL は 404
         nf = self.page(url=self.base + "/butt-sumo/nope/")
         self.assertIn("見つかりません", nf.eval("document.body.innerText") or "見つかりません") if False else None
-        # 正式公開：リリースビルドに入る。公開済みの 2 本だけで、下書きのゲームは入らない。他のゲームの CSP は広がらない
+        # 正式公開：リリースビルドに入る。公開済みの 3 本（stone-dash は iOS の詳細ページだけ）で、下書きのゲームは入らない。他のゲームの CSP は広がらない
         out = ROOT / "tests" / "_out" / "audit_release"
         ids = build.build(release=True, out=out)
-        self.assertEqual(sorted(ids), ["butt-sumo", "crowd-sprint-3d"])
+        self.assertEqual(sorted(ids), ["butt-sumo", "crowd-sprint-3d", "stone-dash"])
         self.assertTrue((out / "butt-sumo" / "main.js").exists())
-        for other in ("ball-dodge", "crowd-sprint", "stone-dash"):
+        for other in ("ball-dodge", "crowd-sprint"):
             self.assertFalse((out / other).exists(), other)
         feed = json.loads((out / "games.json").read_text(encoding="utf-8"))
         self.assertIn("butt-sumo", json.dumps(feed)); self.assertIn("2026-11-23", json.dumps(feed))

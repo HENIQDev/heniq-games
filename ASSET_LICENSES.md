@@ -34,8 +34,16 @@ HENIQ の知的財産権・著作権管理ルールに基づく台帳。**ゲー
 | 詳細ページの配色・装飾 | `store/theme.css` | HENIQ が作成。外部のテンプレートなし | 自作 | 2026-11-22 |
 | 外部素材・外部コード | なし | — | — | 2026-11-22 |
 
-## stone-dash（iOS・下書き）
-- この WEB_GAMES の中には、画像・音などの素材はまだ追加していない。App Store 掲載用の素材（アイコン・スクリーンショットなど）を追加するときは、**Unity 側の素材台帳（飛び石の `Documents` 内の権利記録）と整合させて**、ここに記録する。
+## stone-dash（iOS）
+**素材はすべて HENIQ の iOS ゲーム「STONE DASH!」（`~/Documents/HENIQ/GAME/飛び石`）の自作の物と、ライセンスが明確なフォント（SIL OFL 1.1）だけ。Mac の標準フォントで描いた文字は使っていない。** Unity 側の素材台帳は飛び石の `Documents/ASSET_LICENSES.md`。
+| 素材 | 場所 | 作者・作り方 | ライセンス／権利 | 確認日 |
+|---|---|---|---|---|
+| スクリーンショット 6 枚 | `games/stone-dash/store/art/shot-1-chase.jpg`・`shot-2-speedrun.jpg`・`shot-3-speedup.jpg`・`shot-4-caught.jpg`・`shot-5-revive.jpg`・`shot-6-achievements.jpg` | 飛び石の `Advertising/AppStore/_raw/ja/` の撮影（Simulator で実際のゲームを動かした画面）を、上の Dynamic Island と下の広告の帯・開発ビルドの表示を外して切り抜き、540×1002 に縮小しただけ（文字の合成なし）。メタデータを除去 | 自作。画面の中の文字は、ゲームが iOS の標準フォントで表示した物（下の注意） | 2026-11-26 |
+| キービジュアル・共有用画像・カード画像 | `store/art/hero.jpg`・`og.jpg`・`card.jpg` | 実際のゲームの画面 3 枚（上と同じ撮影。切り抜き・縮小だけ）とアプリのアイコン（`Assets/Tobiishi/Art/Icon/app_icon.png`、自作。ロゴの書体は Inter＝OFL）を、黒の背景に並べ、題名を描いた（CoreGraphics。スクリプトは作業用で非公開） | 自作。題名の書体：**Inter**（英字）・**Noto Sans CJK**（日本語）。どちらも **SIL Open Font License 1.1**（Blender 5.2 に同梱のファイル `datafiles/fonts/Inter.woff2`・`Noto Sans CJK Regular.woff2` を読み込んで描画。権利表記は Blender の `text/license/license.md`：Inter＝Copyright 2020 The Inter Project Authors、Noto＝Copyright 2018 The Noto Project Authors）。フォントのファイルは同梱・配信しない | 2026-11-26 |
+| 詳細ページの配色・装飾 | `store/theme.css` | HENIQ が作成 | 自作 | 2026-11-26 |
+| 外部素材・外部コード・外部ライブラリ | なし | — | — | 2026-11-26 |
+
+注意：スクリーンショットとキービジュアルの中のゲームの画面には、ゲームが実行中に iOS の標準フォントで表示した文字（ボタンの「左・中・右」、タイム、案内の文など）が写っている。これはアプリの画面そのもの（App Store の掲載画像と同じ）で、こちらで文字を合成した物ではない。Mac の標準フォントの利用条件（macOS の使用許諾契約 E 項）は「Apple ソフトウェアの実行中の表示と印刷」だけを明記しているため、**合成する文字には使わない**ことにした（2026-11-26）。
 
 ## crowd-sprint
 2D の比較版（Canvas 2D の疑似 3D）。完成版は下の `crowd-sprint-3d`。

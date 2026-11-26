@@ -51,18 +51,19 @@ class StoreBuildTest(unittest.TestCase):
         text = (self.dist / "index.html").read_text(encoding="utf-8")
         self.assertIn('href="ball-dodge/">PLAY', text)
         self.assertIn('class="card-link" href="ball-dodge/about/"', text)
-        # App Store の URL が未設定の iOS は、詳細ページへ（存在しない App Store へのリンクを出さない）
-        self.assertIn('href="stone-dash/about/"', text)
+        # iOS のカードの本体も、詳細ページへ（App Store へは、カードの下のボタンと詳細ページから）
+        self.assertIn('class="card-link" href="stone-dash/about/"', text)
         self.assertIn("badge-ios", text)
         self.assertIn("badge-web", text)
 
-    def test_ios_card_goes_to_app_store_when_url_set(self):
+    def test_ios_card_links_to_about_and_app_store(self):
         import render
         g = next(x for x in catalog.load_games(catalog.load_genres()) if x["id"] == "stone-dash")
-        g = dict(g, app_store_url="https://apps.apple.com/jp/app/id1")
-        html = render.card(g, catalog.load_genres(), "")
-        self.assertIn('href="https://apps.apple.com/jp/app/id1"', html)
-        self.assertIn('rel="noopener"', html)
+        html = render.card(dict(g, app_store_url="https://apps.apple.com/jp/app/id1"), catalog.load_genres(), "")
+        self.assertIn('class="card-link" href="stone-dash/about/"', html)          # 本体は詳細ページ
+        self.assertIn('class="card-play" href="https://apps.apple.com/jp/app/id1" rel="noopener">App Store', html)
+        # App Store の URL が未設定なら、App Store のボタンを出さない（存在しないリンクを出さない）
+        self.assertNotIn("App Store", render.card(dict(g, app_store_url=None), catalog.load_genres(), "").split("card-foot")[1])
 
     # ---- 内部リンクの整合 ----
     def test_internal_links_resolve(self):
@@ -231,13 +232,15 @@ class StoreBuildTest(unittest.TestCase):
     # ---- 公開の関門 ----
     def test_release_build_has_no_drafts(self):
         ids = build.build(release=True, out=tempfile.mkdtemp())
-        self.assertEqual(sorted(ids), ["butt-sumo", "crowd-sprint-3d"])  # 公開済みは、承認された 2 本だけ。draft は含まれない
+        self.assertEqual(sorted(ids), ["butt-sumo", "crowd-sprint-3d", "stone-dash"])  # 公開済みは、承認された 3 本だけ（stone-dash は 2026-11-26 に承認）。draft は含まれない
 
     def test_release_blockers(self):
         site = catalog.load_site()
         games = catalog.load_games(catalog.load_genres())
-        # 素材のそろっていないゲーム（STONE DASH の下書き）は、画像・スクリーンショット・App Store の URL などで止まる
-        s = dict(next(x for x in games if x["id"] == "stone-dash"), status="published")
+        # 素材のそろっていない iOS ゲームは、画像・スクリーンショット・App Store の URL などで止まる（STONE DASH の素材を外した写しで確認）
+        g = next(x for x in games if x["id"] == "stone-dash")
+        bare = dict(g["_store"], images={}, screenshots=[])
+        s = dict(g, status="published", release_date=None, app_store_url=None, _store=bare)
         text = "\n".join(catalog.release_blockers([s], dict(site, privacy_finalized=False)))
         for needle in ("プライバシー", "release_date", "card", "hero", "og", "スクリーンショット", "app_store_url"):
             self.assertIn(needle, text)
@@ -258,9 +261,11 @@ class StoreBuildTest(unittest.TestCase):
     def test_release_build_strips_dev_files_and_publishes_only_finished(self):
         out = Path(tempfile.mkdtemp()) / "dist"
         ids = build.build(release=True, out=out)
-        self.assertEqual(sorted(ids), ["butt-sumo", "crowd-sprint-3d"])  # 公開するのは、承認された 2 本だけ
+        self.assertEqual(sorted(ids), ["butt-sumo", "crowd-sprint-3d", "stone-dash"])  # 公開するのは、承認された 3 本だけ
         self.assertFalse((out / "crowd-sprint-3d" / "bot.js").exists(), "検証用の bot.js が公開物に入っている")
-        for other in ("ball-dodge", "crowd-sprint", "stone-dash"):
+        self.assertTrue((out / "stone-dash" / "about" / "index.html").exists())     # iOS は詳細ページだけ（本体は無い）
+        self.assertFalse((out / "stone-dash" / "index.html").exists())
+        for other in ("ball-dodge", "crowd-sprint"):
             self.assertFalse((out / other).exists(), other + " が公開物に入っている")
         priv = (out / "privacy" / "index.html").read_text(encoding="utf-8")
         self.assertNotIn("確認前の下書き", priv)
@@ -283,7 +288,7 @@ class StoreBuildTest(unittest.TestCase):
         site = catalog.load_site()
         games = catalog.load_games(catalog.load_genres())
         pub = [g for g in games if g["status"] == "published"]
-        self.assertEqual(sorted(g["id"] for g in pub), ["butt-sumo", "crowd-sprint-3d"])
+        self.assertEqual(sorted(g["id"] for g in pub), ["butt-sumo", "crowd-sprint-3d", "stone-dash"])
         self.assertEqual(catalog.release_blockers(games, site), [])
         self.assertTrue(site["privacy_finalized"])
 
